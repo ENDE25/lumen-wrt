@@ -98,6 +98,9 @@ export interface NetworkMap {
 
 export interface Client {
   link?: ClientLink;
+  vendor?: string;      // from the MAC prefix
+  brand?: string;       // logo key
+  randomMac?: boolean;  // private/locally-administered address
   mac: string;
   name: string;
   ip: string;
@@ -107,7 +110,7 @@ export interface Client {
   static: boolean;
 }
 
-export type ClientKind = 'phone' | 'laptop' | 'desktop' | 'tv' | 'printer' | 'iot' | 'server' | 'router' | 'unknown';
+export type ClientKind = 'phone' | 'laptop' | 'desktop' | 'tv' | 'printer' | 'iot' | 'server' | 'router' | 'console' | 'camera' | 'speaker' | 'unknown';
 
 export interface RatePoint { t: number; rx: number; tx: number } // bytes/s
 

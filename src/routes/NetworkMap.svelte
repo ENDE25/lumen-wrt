@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import Icon from '../components/Icon.svelte';
+  import Glyph from '../components/Glyph.svelte';
   import Drawer from '../components/Drawer.svelte';
   import SignalBars from '../components/SignalBars.svelte';
   import { live } from '../lib/live.svelte';
@@ -65,7 +66,7 @@
           {#each g.nodes as n (n.id)}
             <button class="node {n.kind}" class:off={!n.up} class:active={cur?.id === n.id}
               style:left="{n.x}px" style:top="{n.y}px" style:width="{n.w}px" style:height="{n.h}px" onclick={() => open(n)}>
-              <span class="ico"><Icon name={n.icon} size={n.kind === 'router' || n.kind === 'internet' ? 26 : 18} /></span>
+              <span class="ico"><Glyph brand={n.brand} icon={n.icon} size={n.kind === 'router' || n.kind === 'internet' ? 26 : 18} /></span>
               <span class="txt"><b>{n.title}</b><small>{n.sub}</small></span>
               {#if n.kind === 'client' && n.client?.link?.type === 'wifi'}<span class="sig"><SignalBars dbm={n.client.link.signal} /></span>{/if}
               {#if (n.kind === 'port' || n.kind === 'ssid')}<span class="count">{n.count}</span>{/if}
@@ -81,6 +82,7 @@
   {#if cur}
     {#if cur.kind === 'client' && cur.client}
       {@const c = cur.client}
+      <div class="stat-row"><span>Vendor</span><b>{c.vendor ?? (c.randomMac ? 'Private address' : 'Unknown')}</b></div>
       <div class="stat-row"><span>IP address</span><b class="num">{c.ip || '—'}</b></div>
       <div class="stat-row"><span>MAC</span><b class="mono">{c.mac}</b></div>
       <div class="stat-row"><span>Connection</span><b>{c.link ? (c.link.type === 'wifi' ? 'Wi-Fi' : 'Wired') : 'Unknown'}</b></div>

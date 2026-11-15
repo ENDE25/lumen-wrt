@@ -39,13 +39,14 @@ const HOSTS: [string, string, string, string][] = [
   ['DC:A6:32:4F:19:03', 'raspberrypi', '192.168.1.10', 'server'],
   ['3C:5A:B4:77:AA:04', 'Chromecast', '192.168.1.120', 'tv'],
   ['00:11:32:AB:CD:05', 'NAS-Synology', '192.168.1.5', 'server'],
-  ['B8:27:EB:90:12:06', 'Printer-HP', '192.168.1.30', 'printer'],
+  ['EC:B1:D7:90:12:06', 'Printer-HP', '192.168.1.30', 'printer'],
   ['C8:2B:96:33:44:07', 'Shelly-Lounge', '192.168.1.140', 'iot'],
-  ['64:16:66:AA:BB:08', 'Galaxy-S23', '192.168.1.103', 'phone'],
+  ['00:00:F0:AA:BB:08', 'Galaxy-S23', '192.168.1.103', 'phone'],
   ['9C:B6:D0:12:34:09', 'DESKTOP-GAMING', '192.168.1.50', 'desktop'],
   ['50:DE:06:55:66:0A', 'Apple-TV', '192.168.1.121', 'tv'],
   ['E4:5F:01:01:02:0B', '', '192.168.1.151', 'iot'],
-  ['AC:84:C6:99:88:0C', 'Laptop-Dell', '192.168.1.104', 'laptop'],
+  ['00:06:5B:99:88:0C', 'Laptop-Dell', '192.168.1.104', 'laptop'],
+  ['F6:3A:11:55:77:0D', 'Pixel-8', '192.168.1.105', 'phone'],
 ];
 
 const LOG = [
@@ -61,7 +62,7 @@ const LOG = [
 const WIFI: Record<string, [string, number]> = {
   'Marta-iPhone': ['phy0-ap0', -52], 'MacBook-Pro': ['phy0-ap0', -47], 'Laptop-Dell': ['phy0-ap0', -63],
   'Apple-TV': ['phy0-ap0', -58], 'Galaxy-S23': ['phy1-ap0', -61], 'Chromecast': ['phy1-ap0', -66],
-  'Shelly-Lounge': ['phy1-ap0', -72], '': ['phy1-ap0', -78],
+  'Shelly-Lounge': ['phy1-ap0', -72], 'Pixel-8': ['phy0-ap0', -55], '': ['phy1-ap0', -78],
 };
 const WIRED: Record<string, string> = { raspberrypi: 'lan1', 'NAS-Synology': 'lan1', 'Printer-HP': 'lan2', 'DESKTOP-GAMING': 'lan2' };
 
@@ -154,7 +155,7 @@ export async function mockCall(obj: string, method: string, args: any = {}): Pro
       })) };
     case 'lumen.clients': {
       const mult = ({ '24h': 1, '7d': 6.2, '30d': 24 } as Record<string, number>)[args.range] ?? 1;
-      const base: Record<string, number> = { 'A4:83:E7:11:22:01': 3.2, 'F0:18:98:0B:3C:02': 7.5, 'DC:A6:32:4F:19:03': 1.1, '3C:5A:B4:77:AA:04': 5.1, '00:11:32:AB:CD:05': 11.8, 'B8:27:EB:90:12:06': 0.05, 'C8:2B:96:33:44:07': 0.02, '64:16:66:AA:BB:08': 2.4, '9C:B6:D0:12:34:09': 14.6, '50:DE:06:55:66:0A': 6.3, 'AC:84:C6:99:88:0C': 1.9 };
+      const base: Record<string, number> = { 'A4:83:E7:11:22:01': 3.2, 'F0:18:98:0B:3C:02': 7.5, 'DC:A6:32:4F:19:03': 1.1, '3C:5A:B4:77:AA:04': 5.1, '00:11:32:AB:CD:05': 11.8, 'EC:B1:D7:90:12:06': 0.05, 'C8:2B:96:33:44:07': 0.02, '00:00:F0:AA:BB:08': 2.4, '9C:B6:D0:12:34:09': 14.6, '50:DE:06:55:66:0A': 6.3, '00:06:5B:99:88:0C': 1.9, 'F6:3A:11:55:77:0D': 2.8 };
       const totals: Record<string, [number, number]> = {};
       for (const [m, gb] of Object.entries(base)) totals[m.toLowerCase()] = [Math.round(gb * 1e9 * mult), Math.round(gb * 1e9 * mult * (0.06 + (m.charCodeAt(3) % 7) / 40))];
       totals['?'] = [Math.round(0.4e9 * mult), Math.round(0.03e9 * mult)];

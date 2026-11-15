@@ -3,7 +3,7 @@
 A modern admin panel for **OpenWrt**, built as an alternative to LuCI. Its look and feel is inspired
 by professional network consoles: a compact icon rail, cards, live charts and slide-over detail panels.
 
-> Status: **v0.6 (in development)**. Dashboards plus safe configuration of DHCP/DNS, the firewall and Wi-Fi.
+> Status: **v0.7 (in development)**. Dashboards plus safe configuration of DHCP/DNS, the firewall and Wi-Fi.
 
 ## How it works
 
@@ -69,9 +69,19 @@ scripts/         deploy.sh
 - [x] Wi-Fi: radios, SSIDs (WPA2/WPA3/OWE/open), connected clients, kick — *developed against the demo mock; not yet verified on hardware*
 - [x] Traffic history: tiny ucode collector (procd) keeping 5-min buckets for 7 days and hourly for 90 days, in RAM by default (`/etc/config/lumen` can mirror it to a file via `persist`)
 - [x] Per-client traffic: nftables per-element counters (table `inet lumen`, forward hook, IPv4+IPv6) mapped to MACs, hourly buckets kept 30 days
+- [x] Vendor detection from the MAC prefix (IEEE MA-L/MA-M/MA-S, 360 KB gzipped, loaded on demand) with brand logos and better category icons; private/randomised MACs are labelled as such
 - [ ] Installable package (`apk`/`opkg`) with its own rpcd ACL
 - [ ] Package management and firmware upgrades
 - [ ] Internationalisation (English only for now)
+
+## Vendor detection and logos
+
+`public/oui.bin` is a gzipped table built from the IEEE registries by `node scripts/build-oui.mjs` (it is committed,
+so normal builds need no network; re-run it occasionally). The browser fetches it once, the first time a page needs
+vendor names. Brand rules live in `src/lib/vendor.ts`. Logos come from Simple Icons (CC0 artwork, owners' trademarks)
+via `scripts/build-logos.mjs`; to ship without any logos replace `src/lib/logos.ts` with
+`export const LOGOS: Record<string, string> = {};` and the category icons are used instead.
+Devices using randomised MAC addresses (most recent phones) cannot be identified by design.
 
 ## Security notes
 

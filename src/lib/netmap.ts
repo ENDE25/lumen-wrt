@@ -5,7 +5,7 @@ export type NodeKind = 'internet' | 'router' | 'port' | 'ssid' | 'client';
 
 export interface GNode {
   id: string; kind: NodeKind; x: number; y: number; w: number; h: number;
-  title: string; sub: string; icon: string; up: boolean;
+  title: string; sub: string; icon: string; brand?: string; up: boolean;
   client?: Client; port?: NetDevice; wifi?: WifiIface; iface?: NetInterface; count?: number;
 }
 export interface GLink { id: string; from: string; to: string; wifi: boolean; up: boolean; label?: string }
@@ -74,7 +74,7 @@ export function buildGraph(p: {
     nodes.push({ x: COL.attach, y: cy - AH / 2, w: W.attach, h: AH, kind: a.kind, id: a.id, title: '', sub: '', icon: '', up: true, ...a.node, count: a.clients.length } as GNode);
     a.clients.forEach((c, i) => {
       const id = `client:${c.mac}`;
-      nodes.push({ id, kind: 'client', x: COL.client, y: y + i * ROW + (ROW - CH) / 2, w: W.client, h: CH, title: c.name || c.ip || c.mac, sub: c.name ? c.ip : c.mac, icon: c.kind, up: true, client: c });
+      nodes.push({ id, kind: 'client', x: COL.client, y: y + i * ROW + (ROW - CH) / 2, w: W.client, h: CH, title: c.name || c.ip || c.mac, sub: c.name ? c.ip : c.mac, icon: c.kind, brand: c.brand, up: true, client: c });
       links.push({ id: `${a.id}>${id}`, from: a.id, to: id, wifi: a.kind === 'ssid', up: true });
     });
     rows.push({ cy });

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import Icon from '../components/Icon.svelte';
+  import Glyph from '../components/Glyph.svelte';
   import Drawer from '../components/Drawer.svelte';
   import SignalBars from '../components/SignalBars.svelte';
   import { getClientTraffic, getClients } from '../lib/api';
@@ -24,11 +25,11 @@
 
   const KIND: Record<string, string> = {
     phone: 'Phone', laptop: 'Laptop', desktop: 'Desktops', tv: 'TV', printer: 'Printer',
-    iot: 'IoT', server: 'Server', router: 'Network', unknown: 'Unknown',
+    iot: 'IoT', server: 'Server', router: 'Network', console: 'Console', camera: 'Camera', speaker: 'Speaker', unknown: 'Unknown',
   };
   const rows = $derived.by(() => {
     const s = q.trim().toLowerCase();
-    let r = s ? clients.filter((c) => [c.name, c.ip, c.mac, KIND[c.kind]].some((v) => v.toLowerCase().includes(s))) : clients;
+    let r = s ? clients.filter((c) => [c.name, c.ip, c.mac, c.vendor ?? '', KIND[c.kind]].some((v) => v.toLowerCase().includes(s))) : clients;
     if (sort) {
       const { k, dir } = sort;
       r = [...r].sort((a, b) => dir * String(a[k]).localeCompare(String(b[k]), undefined, { numeric: true }));
@@ -65,7 +66,7 @@
         {#each rows as c (c.mac)}
           <tr class="click" class:sel={sel?.mac === c.mac} onclick={() => (sel = c)} tabindex="0"
             onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && (sel = c)}>
-            <td><span class="who"><span class="ico"><Icon name={c.kind} size={18} /></span>{c.name || 'Unnamed'}</span></td>
+            <td><span class="who"><span class="ico"><Glyph brand={c.brand} icon={c.kind} size={18} /></span><span class="nm"><b>{c.name || 'Unnamed'}</b>{#if c.vendor || c.randomMac}<small class="faint">{c.vendor ?? 'Private address'}</small>{/if}</span></span></td>
             <td class="num">{c.ip || '—'}</td>
             <td>{#if c.link?.type === 'wifi'}<span class="conn"><Icon name="wifi" size={15} />{c.link.ssid}<SignalBars dbm={c.link.signal} /></span>{:else if c.link}<span class="conn"><Icon name="devices" size={15} />{c.link.dev}</span>{:else}<span class="faint">—</span>{/if}</td>
             <td class="mono muted">{c.mac}</td>
@@ -83,7 +84,9 @@
 
 <Drawer open={!!sel} title={sel?.name || 'Cliente'} onclose={() => (sel = null)}>
   {#if sel}
-    <div class="det-hero"><span class="ico big"><Icon name={sel.kind} size={30} /></span><div><b>{sel.name || 'Unnamed'}</b><p class="muted">{KIND[sel.kind]}</p></div></div>
+    <div class="det-hero"><span class="ico big"><Glyph brand={sel.brand} icon={sel.kind} size={30} /></span><div><b>{sel.name || 'Unnamed'}</b><p class="muted">{KIND[sel.kind]}</p></div></div>
+    <div class="stat-row"><span>Vendor</span><b>{sel.vendor ?? (sel.randomMac ? 'Private address' : 'Unknown')}</b></div>
+    {#if sel.randomMac}<p class="hint">This device uses a randomised MAC address (typical of recent phones), so the maker can't be identified.</p>{/if}
     <div class="stat-row"><span>IP address</span><b class="num">{sel.ip || '—'}</b></div>
     <div class="stat-row"><span>Connection</span><b>{sel.link ? (sel.link.type === 'wifi' ? `Wi-Fi · ${sel.link.ssid} (${sel.link.band})` : `Wired · ${sel.link.dev}`) : 'Unknown'}</b></div>
     {#if sel.link?.signal !== undefined}<div class="stat-row"><span>Signal</span><b class="num">{sel.link.signal} dBm</b></div>{/if}
@@ -101,6 +104,8 @@
   .tablewrap { padding: 0; overflow-x: auto; }
   th button { background: none; border: 0; font: inherit; color: inherit; text-transform: inherit; letter-spacing: inherit; padding: 0; }
   .who { display: inline-flex; align-items: center; gap: 12px; font-weight: 500; }
+  .nm { display: grid; line-height: 1.25; } .nm small { font-size: 12px; font-weight: 400; }
+  .hint { color: var(--text-3); font-size: 12.5px; margin: 2px 0 8px; }
   .ico { width: 32px; height: 32px; border-radius: 9px; background: var(--surface-2); color: var(--text-2); display: grid; place-items: center; }
   .ico.big { width: 56px; height: 56px; border-radius: 14px; background: var(--accent-soft); color: var(--accent); }
   .det-hero { display: flex; gap: 14px; align-items: center; margin-bottom: 14px; }

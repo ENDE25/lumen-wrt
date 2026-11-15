@@ -1,4 +1,5 @@
 import { batch, call } from './ubus';
+import { loadVendors, lookup } from './vendor';
 import type { ClientRange, ClientSeries, ClientTraffic, History, HistoryRange, Service, Stats, Board, Client, ClientKind, ClientLink, HostHint, Lease, NetDevice, NetInterface, NetworkMap, SystemInfo, WifiIface } from './types';
 
 export const getBoard = () => call<Board>('system', 'board');
@@ -32,7 +33,10 @@ export function kindOf(name: string): ClientKind {
   if (/tv|chromecast|roku|firestick|apple-tv|appletv/.test(n)) return 'tv';
   if (/print|impres|brother|canon|epson|^hp/.test(n)) return 'printer';
   if (/nas|server|raspberry|pve|proxmox|docker|openwrt/.test(n)) return 'server';
-  if (/shelly|esp|tasmota|sonoff|tuya|cam|bulb|hue/.test(n)) return 'iot';
+  if (/playstation|ps[45]\b|xbox|nintendo|switch-|steamdeck/.test(n)) return 'console';
+  if (/camera|cam-|ipcam|reolink|hikvision|doorbell/.test(n)) return 'camera';
+  if (/sonos|echo|homepod|speaker|alexa/.test(n)) return 'speaker';
+  if (/shelly|esp|tasmota|sonoff|tuya|bulb|hue/.test(n)) return 'iot';
   return 'unknown';
 }
 
@@ -93,6 +97,13 @@ export async function getNetworkMap(): Promise<NetworkMap> {
       mac, name, ip: h.ipaddrs?.[0] ?? lease?.ipaddr ?? '', ip6: h.ip6addrs ?? [],
       kind: kindOf(name), leaseExpires: lease?.expires, static: !lease, link,
     });
+  }
+  // Vendor from the MAC prefix: names, logos, and a category when the hostname told us nothing.
+  await loadVendors();
+  for (const c of clients) {
+    const v = lookup(c.mac);
+    c.vendor = v.vendor ?? undefined; c.brand = v.brand; c.randomMac = v.randomized;
+    if (c.kind === 'unknown' && v.kind) c.kind = v.kind;
   }
   clients.sort((a, b) => ipNum(a.ip) - ipNum(b.ip));
   return { clients, wifi, bridges };

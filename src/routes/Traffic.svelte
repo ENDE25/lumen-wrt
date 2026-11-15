@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import Icon from '../components/Icon.svelte';
+  import Glyph from '../components/Glyph.svelte';
   import HistoryChart, { type Bucket } from '../components/HistoryChart.svelte';
   import Drawer from '../components/Drawer.svelte';
   import { getClientSeries, getClientTraffic, getClients, getHistory } from '../lib/api';
@@ -156,7 +157,7 @@
           <tbody>
             {#each rows as r (r.mac)}
               <tr class="click" tabindex="0" onclick={() => openClient(r)} onkeydown={(e) => e.key === 'Enter' && openClient(r)}>
-                <td><span class="who"><span class="cico"><Icon name={r.kind} size={16} /></span><span class="nm"><b>{r.name}</b><small class="faint">{r.sub}</small></span></span></td>
+                <td><span class="who"><span class="cico"><Glyph brand={r.brand} icon={r.kind} size={16} /></span><span class="nm"><b>{r.name}</b><small class="faint">{r.sub}</small></span></span></td>
                 <td class="num" style="color:var(--rx)">{bytes(r.rx)}</td><td class="num" style="color:var(--tx)">{bytes(r.tx)}</td><td class="num"><b>{bytes(r.all)}</b></td>
                 <td class="bar"><i style:width="{r.pct}%"></i></td>
               </tr>

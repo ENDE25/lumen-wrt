@@ -4,6 +4,7 @@
   import Donut from '../components/Donut.svelte';
   import Meter from '../components/Meter.svelte';
   import Icon from '../components/Icon.svelte';
+  import Glyph from '../components/Glyph.svelte';
   import LineChart from '../components/LineChart.svelte';
   import { live } from '../lib/live.svelte';
   import { getBoard, getClientTraffic, getClients, getServices, isFailed } from '../lib/api';
@@ -46,7 +47,7 @@
   const KIND: Record<string, [string, string]> = {
     phone: ['Phones', '#28a5ee'], laptop: ['Laptops', '#006fff'], desktop: ['Desktops', '#0a3fa8'],
     tv: ['TV', '#f09a14'], printer: ['Printers', '#17a860'], iot: ['IoT', '#a24fd8'],
-    server: ['Servers', '#e5484d'], router: ['Network', '#5d6675'], unknown: ['Other', '#9aa3b2'],
+    server: ['Servers', '#e5484d'], router: ['Network', '#5d6675'], console: ['Consoles', '#0f9fa8'], camera: ['Cameras', '#c2410c'], speaker: ['Speakers', '#7c6bd6'], unknown: ['Other', '#9aa3b2'],
   };
   const segs = $derived.by(() => {
     const m = new Map<string, number>();
@@ -200,7 +201,7 @@
           <ul class="topc">
             {#each top as r (r.mac)}
               <li>
-                <span class="cico"><Icon name={r.kind} size={16} /></span>
+                <span class="cico"><Glyph brand={r.brand} icon={r.kind} size={16} /></span>
                 <span class="nm"><b>{r.name}</b><i style:width="{r.pct}%"></i></span>
                 <span class="num amt"><span style="color:var(--rx)">↓ {bytes(r.rx)}</span> <span style="color:var(--tx)">↑ {bytes(r.tx)}</span></span>
               </li>
