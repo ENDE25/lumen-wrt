@@ -3,7 +3,7 @@
 A modern admin panel for **OpenWrt**, built as an alternative to LuCI. Its look and feel is inspired
 by professional network consoles: a compact icon rail, cards, live charts and slide-over detail panels.
 
-> Status: **v0.3 (in development)**. Dashboards plus safe configuration of DHCP/DNS and the firewall.
+> Status: **v0.4 (in development)**. Dashboards plus safe configuration of DHCP/DNS, the firewall and Wi-Fi.
 
 ## How it works
 
@@ -22,7 +22,7 @@ uhttpd serves the files and rpcd is the API, enforcing its ACLs.
 
 ## Pages
 
-Dashboard · Network Map · Network · Clients · Firewall · DHCP & DNS · Logs · System
+Dashboard · Network Map · Network · Clients · Wi-Fi · Firewall · DHCP & DNS · Logs · System
 
 ## Development
 
@@ -59,7 +59,7 @@ scripts/         deploy.sh
 - [x] Safe UCI apply with confirm / automatic rollback
 - [x] DHCP/DNS and static reservations
 - [x] Firewall: port forwards, traffic rules (with ordering), zones and forwardings (always manual-confirm)
-- [ ] Wi-Fi (radios, SSIDs, associated clients)
+- [x] Wi-Fi: radios, SSIDs (WPA2/WPA3/OWE/open), connected clients, kick — *developed against the demo mock; not yet verified on hardware*
 - [ ] Traffic history (lightweight time-series daemon) and per-client traffic
 - [ ] Installable package (`apk`/`opkg`) with its own rpcd ACL
 - [ ] Package management and firmware upgrades

@@ -52,16 +52,16 @@ export async function getNetworkMap(): Promise<NetworkMap> {
   for (const i of (ifs?.interface ?? []) as NetInterface[]) (i['ipv4-address'] ?? []).forEach((a) => ownIps.add(a.address));
 
   // Wi-Fi: interface names come from the wireless config; iwinfo then gives SSID + associations.
-  const ifnames: { ifname: string; ssid: string; mode: string }[] = [];
-  for (const r of Object.values<any>(radios ?? {}))
-    for (const i of r.interfaces ?? []) if (i.ifname) ifnames.push({ ifname: i.ifname, ssid: i.config?.ssid ?? '', mode: i.config?.mode ?? 'ap' });
+  const ifnames: { ifname: string; ssid: string; mode: string; section?: string; radio?: string }[] = [];
+  for (const [radio, r] of Object.entries<any>(radios ?? {}))
+    for (const i of r.interfaces ?? []) if (i.ifname) ifnames.push({ ifname: i.ifname, ssid: i.config?.ssid ?? '', mode: i.config?.mode ?? 'ap', section: i.section, radio });
   const wifiRes = ifnames.length
     ? await batch(ifnames.flatMap(({ ifname }) => [['iwinfo', 'info', { device: ifname }], ['iwinfo', 'assoclist', { device: ifname }]] as [string, string, object][]))
     : [];
   const wifi: WifiIface[] = ifnames.map((w, i) => {
     const info = wifiRes[i * 2] ?? {}, assoc = wifiRes[i * 2 + 1]?.results ?? [];
     return {
-      ifname: w.ifname, ssid: info.ssid || w.ssid, mode: info.mode || w.mode, channel: info.channel,
+      ifname: w.ifname, section: w.section, radio: w.radio, ssid: info.ssid || w.ssid, mode: info.mode || w.mode, channel: info.channel,
       band: bandOf(info.frequency),
       clients: assoc.map((a: any) => ({ mac: String(a.mac).toLowerCase(), signal: a.signal, rx: a.rx?.rate, tx: a.tx?.rate })),
     };

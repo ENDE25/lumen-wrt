@@ -67,6 +67,13 @@ const WIRED: Record<string, string> = { raspberrypi: 'lan1', 'NAS-Synology': 'la
 
 // Tiny in-memory UCI so the DHCP/DNS page is fully usable in demo mode.
 const UCI: Record<string, Record<string, any>> = {
+  wireless: {
+    radio0: { '.name': 'radio0', '.type': 'wifi-device', type: 'mac80211', band: '5g', channel: '36', htmode: 'HE80', country: 'ES', txpower: '23' },
+    radio1: { '.name': 'radio1', '.type': 'wifi-device', type: 'mac80211', band: '2g', channel: 'auto', htmode: 'HE20', country: 'ES' },
+    default_radio0: { '.name': 'default_radio0', '.type': 'wifi-iface', '.anonymous': true, device: 'radio0', network: 'lan', mode: 'ap', ssid: 'Lumen-5G', encryption: 'sae-mixed', key: 'correct-horse-battery', ieee80211w: '1' },
+    default_radio1: { '.name': 'default_radio1', '.type': 'wifi-iface', '.anonymous': true, device: 'radio1', network: 'lan', mode: 'ap', ssid: 'Lumen', encryption: 'psk2', key: 'staple-battery-horse' },
+    guest_radio1: { '.name': 'guest_radio1', '.type': 'wifi-iface', '.anonymous': true, device: 'radio1', network: 'lan', mode: 'ap', ssid: 'Lumen-Guest', encryption: 'psk2', key: 'welcome-guests', isolate: '1', disabled: '1' },
+  },
   firewall: {
     cfg0def: { '.name': 'cfg0def', '.type': 'defaults', '.anonymous': true, syn_flood: '1', input: 'REJECT', output: 'ACCEPT', forward: 'REJECT' },
     cfg0lan: { '.name': 'cfg0lan', '.type': 'zone', '.anonymous': true, name: 'lan', network: ['lan'], input: 'ACCEPT', output: 'ACCEPT', forward: 'ACCEPT' },
@@ -130,7 +137,7 @@ export async function mockCall(obj: string, method: string, args: any = {}): Pro
     case 'luci-rpc.getDHCPLeases':
       return { dhcp_leases: HOSTS.filter((h) => !['192.168.1.5', '192.168.1.10'].includes(h[2])).map(([mac, name, ip], i) => ({ expires: 40000 - i * 3000, macaddr: mac.toLowerCase(), ipaddr: ip, hostname: name || '*' })), dhcp6_leases: [] };
     case 'luci-rpc.getWirelessDevices':
-      return { radio0: { up: true, interfaces: [{ ifname: 'phy0-ap0', config: { ssid: 'Lumen-5G', mode: 'ap' } }] }, radio1: { up: true, interfaces: [{ ifname: 'phy1-ap0', config: { ssid: 'Lumen', mode: 'ap' } }] } };
+      return { radio0: { up: true, interfaces: [{ section: 'default_radio0', ifname: 'phy0-ap0', config: { ssid: 'Lumen-5G', mode: 'ap' } }] }, radio1: { up: true, interfaces: [{ section: 'default_radio1', ifname: 'phy1-ap0', config: { ssid: 'Lumen', mode: 'ap' } }] } };
     case 'lumen.topology':
       return {
         bridges: { 'br-lan': ['lan1', 'lan2', 'phy0-ap0', 'phy1-ap0'] },
@@ -166,6 +173,13 @@ export async function mockCall(obj: string, method: string, args: any = {}): Pro
         sqm: { instances: { wan: { running: false, exit_code: 1 } } }, sysntpd: { instances: { instance1: { running: true } } },
         cron: {}, hostapd: { instances: { hostapd: { running: true } } }, odhcp6c: { instances: { wan6: { running: true } } },
       };
+    case 'iwinfo.phyname': return { name: args.section === 'radio0' ? 'phy0' : 'phy1' };
+    case 'iwinfo.freqlist': {
+      const five = args.device === 'phy0';
+      const ch = five ? [36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 149, 153, 157, 161, 165] : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
+      return { results: ch.map((c) => ({ mhz: five ? 5000 + c * 5 : 2407 + c * 5, channel: c, restricted: five && c >= 52 && c <= 64 })) };
+    }
+    case 'iwinfo.countrylist': return { results: [{ code: 'ES', name: 'Spain' }, { code: 'US', name: 'United States' }, { code: 'DE', name: 'Germany' }, { code: 'GB', name: 'United Kingdom' }, { code: 'FR', name: 'France' }] };
     case 'log.read':
       return { log: LOG.map((l, i) => ({ msg: l, id: i, priority: 6, source: 3, time: Date.now() - (LOG.length - i) * 60000 })) };
     case 'system.reboot':
@@ -197,6 +211,7 @@ export async function mockCall(obj: string, method: string, args: any = {}): Pro
     case 'uci.apply': case 'uci.confirm': case 'uci.rollback': case 'uci.revert':
       return {};
   }
+  if (obj.startsWith('hostapd.') && method === 'del_client') return {};
   if (obj === 'file' && method === 'exec') return { code: 0, stdout: '' };
   console.warn('[mock] unhandled', k, args);
   throw new Error('mock: unhandled ' + k);

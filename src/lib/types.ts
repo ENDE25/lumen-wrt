@@ -81,6 +81,8 @@ export interface ClientLink {
 
 export interface WifiIface {
   ifname: string;
+  section?: string;   // UCI wifi-iface section name
+  radio?: string;     // wifi-device name
   ssid: string;
   mode: string;
   channel?: number;
