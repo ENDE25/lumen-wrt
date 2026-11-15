@@ -180,7 +180,7 @@
                 <small class="faint">{sv.running ? 'running' : sv.instances ? `failed (exit ${sv.exitCode ?? '?'})` : 'no daemon'}</small></li>
             {/each}
           </ul>
-          {#if services.length > 8}<a href="#/system" class="more">View all {services.length} services</a>{/if}
+          {#if services.length > 8}<a href="#/services" class="more">View all {services.length} services</a>{/if}
         </div>
 
         <div class="card">

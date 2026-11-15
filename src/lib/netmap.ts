@@ -11,7 +11,7 @@ export interface GNode {
 export interface GLink { id: string; from: string; to: string; wifi: boolean; up: boolean; curve: boolean; label?: string }
 export interface Graph { nodes: GNode[]; links: GLink[]; width: number; height: number }
 
-export const COL = { internet: 24, router: 330, attach: 600, client: 910 } as const;
+export const COL = { internet: 24, router: 330, attach: 660, client: 960 } as const;
 const W = { internet: 140, router: 230, attach: 220, client: 250 } as const;
 const ROW = 74, GAP = 22, CH = 62, AH = 58;
 

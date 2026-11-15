@@ -1,23 +1,19 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { getBoard, getServices, isFailed, reboot } from '../lib/api';
+  import { getBoard, reboot } from '../lib/api';
   import { memory, tempTone } from '../lib/derive';
   import { live } from '../lib/live.svelte';
   import { bytes, duration } from '../lib/format';
-  import type { Board, Service } from '../lib/types';
+  import type { Board } from '../lib/types';
   import Icon from '../components/Icon.svelte';
 
   let board = $state<Board | null>(null);
   let confirming = $state(false);
   let rebooting = $state(false);
-  let services = $state<Service[]>([]);
 
   onMount(() => {
     getBoard().then((b) => (board = b));
-    const svc = () => getServices().then((x) => (services = x)).catch(() => {});
-    svc(); const t = setInterval(svc, 8000);
-    const stop = live.start();
-    return () => { stop(); clearInterval(t); };
+    return live.start();
   });
   const sys = $derived(live.system);
   const st = $derived(live.stats);
@@ -83,25 +79,10 @@
     </div>
   </div>
 
-  <div class="card" style="margin-top:16px">
-    <div class="card-title"><h2>Services <span class="faint">{services.length}</span></h2></div>
-    <div class="tw"><table class="tbl">
-      <thead><tr><th>Service</th><th>Status</th><th>Instances</th></tr></thead>
-      <tbody>
-        {#each services as sv (sv.name)}
-          <tr><td><b>{sv.name}</b></td>
-            <td><span class="pill"><i class="dot" class:ok={sv.running} class:bad={isFailed(sv)}></i>{sv.running ? 'Running' : sv.instances ? `Failed (exit ${sv.exitCode ?? '?'})` : 'No daemon'}</span></td>
-            <td class="num muted">{sv.instances}</td></tr>
-        {/each}
-      </tbody>
-    </table></div>
-  </div>
 </div>
 
 <style>
   .cols { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); align-items: start; }
   .row { display: flex; gap: 8px; }
-  .tw { overflow-x: auto; margin: 0 -20px -8px; }
-  .tbl th:first-child, .tbl td:first-child { padding-left: 20px; }
   .t-ok { color: var(--ok); } .t-warn { color: var(--warn); } .t-bad { color: var(--bad); }
 </style>

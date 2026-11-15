@@ -32,10 +32,17 @@
   const byId = $derived(new Map(g.nodes.map((n) => [n.id, n])));
   // Where a link leaves a node: the Internet globe has no box, so it starts next to the globe itself.
   const outPt = (a: GNode) => (a.kind === 'internet' ? { x: a.x + a.w / 2 + 30, y: a.y + 26 } : { x: a.x + a.w, y: a.y + a.h / 2 });
-  // Router -> ports/SSIDs are straight; ports/SSIDs -> clients are smooth curves.
+  // Router -> ports/SSIDs: right-angle "bracket" connectors with softly rounded corners (all share one trunk).
+  // Ports/SSIDs -> clients: smooth curves.
+  function elbow(x1: number, y1: number, x2: number, y2: number, r = 9) {
+    const dy = y2 - y1;
+    if (Math.abs(dy) < 1) return `M${x1},${y1} H${x2}`;
+    const xm = x1 + (x2 - x1) / 2, s = Math.sign(dy), rr = Math.min(r, Math.abs(dy) / 2, (x2 - x1) / 2);
+    return `M${x1},${y1} H${xm - rr} Q${xm},${y1} ${xm},${y1 + s * rr} V${y2 - s * rr} Q${xm},${y2} ${xm + rr},${y2} H${x2}`;
+  }
   const path = (a: GNode, b: GNode, curve: boolean) => {
     const { x: x1, y: y1 } = outPt(a), x2 = b.x, y2 = b.y + b.h / 2, dx = (x2 - x1) / 2;
-    return curve ? `M${x1},${y1} C${x1 + dx},${y1} ${x2 - dx},${y2} ${x2},${y2}` : `M${x1},${y1} L${x2},${y2}`;
+    return curve ? `M${x1},${y1} C${x1 + dx},${y1} ${x2 - dx},${y2} ${x2},${y2}` : elbow(x1, y1, x2, y2);
   };
   const cur = $derived(sel ? g.nodes.find((n) => n.id === sel!.id) ?? sel : null);
   const mbps = (k?: number) => (k ? `${Math.round(k / 1000)} Mb/s` : '—');
@@ -137,7 +144,7 @@
   .sizer { position: relative; }
   .canvas { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
   svg { position: absolute; inset: 0; overflow: visible; }
-  .link { fill: none; stroke: var(--text-3); stroke-opacity: .55; stroke-width: 1.6; }
+  .link { fill: none; stroke: var(--text-3); stroke-opacity: .55; stroke-width: 1.6; stroke-linejoin: round; }
   .link.wifi { stroke: var(--accent); stroke-opacity: .7; stroke-dasharray: 5 5; animation: flow 1.2s linear infinite; }
   .link.down { stroke-opacity: .2; animation: none; }
   svg text { font-size: 11px; fill: var(--text-3); }
