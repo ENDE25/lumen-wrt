@@ -67,6 +67,17 @@ const WIRED: Record<string, string> = { raspberrypi: 'lan1', 'NAS-Synology': 'la
 
 // Tiny in-memory UCI so the DHCP/DNS page is fully usable in demo mode.
 const UCI: Record<string, Record<string, any>> = {
+  firewall: {
+    cfg0def: { '.name': 'cfg0def', '.type': 'defaults', '.anonymous': true, syn_flood: '1', input: 'REJECT', output: 'ACCEPT', forward: 'REJECT' },
+    cfg0lan: { '.name': 'cfg0lan', '.type': 'zone', '.anonymous': true, name: 'lan', network: ['lan'], input: 'ACCEPT', output: 'ACCEPT', forward: 'ACCEPT' },
+    cfg0wan: { '.name': 'cfg0wan', '.type': 'zone', '.anonymous': true, name: 'wan', network: ['wan', 'wan6'], input: 'REJECT', output: 'ACCEPT', forward: 'DROP', masq: '1', mtu_fix: '1' },
+    cfg0fwd: { '.name': 'cfg0fwd', '.type': 'forwarding', '.anonymous': true, src: 'lan', dest: 'wan' },
+    cfg0r1: { '.name': 'cfg0r1', '.type': 'redirect', '.anonymous': true, name: 'NAS web UI', src: 'wan', src_dport: '5000', dest: 'lan', dest_ip: '192.168.1.5', dest_port: '5000', proto: 'tcp', target: 'DNAT' },
+    cfg0r2: { '.name': 'cfg0r2', '.type': 'redirect', '.anonymous': true, name: 'SSH to Raspberry Pi', src: 'wan', src_dport: '2222', dest: 'lan', dest_ip: '192.168.1.10', dest_port: '22', proto: 'tcp', target: 'DNAT', enabled: '0' },
+    cfg0u1: { '.name': 'cfg0u1', '.type': 'rule', '.anonymous': true, name: 'Allow-Ping', src: 'wan', proto: 'icmp', icmp_type: ['echo-request'], family: 'ipv4', target: 'ACCEPT' },
+    cfg0u2: { '.name': 'cfg0u2', '.type': 'rule', '.anonymous': true, name: 'Allow-IPSec-ESP', src: 'wan', dest: 'lan', proto: 'esp', target: 'ACCEPT' },
+    cfg0u3: { '.name': 'cfg0u3', '.type': 'rule', '.anonymous': true, name: 'Block kids tablet at night', src: 'lan', src_ip: '192.168.1.103', dest: 'wan', proto: 'tcp udp', target: 'REJECT', enabled: '0' },
+  },
   dhcp: {
     cfg01411c: { '.name': 'cfg01411c', '.type': 'dnsmasq', '.anonymous': true, domain: 'lan', local: '/lan/', cachesize: '1000', rebind_protection: '1', expandhosts: '1', server: ['1.1.1.1', '9.9.9.9'] },
     lan: { '.name': 'lan', '.type': 'dhcp', interface: 'lan', start: '100', limit: '150', leasetime: '12h', dhcpv4: 'server' },
@@ -175,6 +186,14 @@ export async function mockCall(obj: string, method: string, args: any = {}): Pro
     case 'uci.delete':
       if (args.option) delete UCI[args.config]?.[args.section]?.[args.option]; else delete UCI[args.config]?.[args.section];
       return {};
+    case 'uci.order': {
+      const c = UCI[args.config]; const keep = Object.entries(c).filter(([k]) => !args.sections.includes(k));
+      const first = Object.entries(c).findIndex(([k]) => args.sections.includes(k));
+      const ord = args.sections.map((k: string) => [k, c[k]]);
+      const all = [...keep.slice(0, Math.max(0, first)), ...ord, ...keep.slice(Math.max(0, first))];
+      UCI[args.config] = Object.fromEntries(all);
+      return {};
+    }
     case 'uci.apply': case 'uci.confirm': case 'uci.rollback': case 'uci.revert':
       return {};
   }

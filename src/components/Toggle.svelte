@@ -1,8 +1,8 @@
 <script lang="ts">
-  let { checked = $bindable(false), label = '', disabled = false }: { checked?: boolean; label?: string; disabled?: boolean } = $props();
+  let { checked = $bindable(false), label = '', disabled = false, onchange }: { checked?: boolean; label?: string; disabled?: boolean; onchange?: (v: boolean) => void } = $props();
 </script>
 <label class="tg" class:disabled>
-  <input type="checkbox" role="switch" bind:checked {disabled} />
+  <input type="checkbox" role="switch" bind:checked {disabled} onchange={() => onchange?.(checked)} />
   <span class="track"><i></i></span>
   {#if label}<span class="lbl">{label}</span>{/if}
 </label>

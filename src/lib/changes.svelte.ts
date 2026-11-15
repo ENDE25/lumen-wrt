@@ -1,6 +1,6 @@
 // Safe-apply workflow: stage ops -> `uci apply` with rollback timer -> confirm (auto or by the user).
 // If the router becomes unreachable, nobody confirms and rpcd rolls everything back by itself.
-import { uciAdd, uciApply, uciConfirm, uciDelete, uciRevert, uciRollback, uciSet, type UciOp } from './uci';
+import { uciAdd, uciApply, uciConfirm, uciDelete, uciOrder, uciRevert, uciRollback, uciSet, type UciOp } from './uci';
 import { call } from './ubus';
 
 const TIMEOUT = 30;
@@ -25,6 +25,7 @@ class Changes {
         if (o.op === 'set') await uciSet(o.config, o.section, o.values);
         else if (o.op === 'add') await uciAdd(o.config, o.type, o.values);
         else if (o.op === 'del') await uciDelete(o.config, o.section);
+        else if (o.op === 'order') await uciOrder(o.config, o.sections);
         else await uciDelete(o.config, o.section, o.option);
       }
       await uciApply(TIMEOUT);

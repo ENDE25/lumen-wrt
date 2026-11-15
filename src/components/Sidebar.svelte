@@ -9,6 +9,7 @@
     { id: 'map', icon: 'network', label: 'Network Map' },
     { id: 'network', icon: 'devices', label: 'Network' },
     { id: 'clients', icon: 'clients', label: 'Clients' },
+    { id: 'firewall', icon: 'shield', label: 'Firewall' },
     { id: 'dhcp', icon: 'dns', label: 'DHCP & DNS' },
     { id: 'logs', icon: 'logs', label: 'Logs' },
     { id: 'system', icon: 'settings', label: 'System' },
