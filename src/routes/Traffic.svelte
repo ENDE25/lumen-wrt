@@ -2,10 +2,12 @@
   import { onMount } from 'svelte';
   import Icon from '../components/Icon.svelte';
   import HistoryChart, { type Bucket } from '../components/HistoryChart.svelte';
-  import { getHistory } from '../lib/api';
+  import Drawer from '../components/Drawer.svelte';
+  import { getClientSeries, getClientTraffic, getClients, getHistory } from '../lib/api';
+  import { clientRows, type ClientRow } from '../lib/clientstats';
   import { live } from '../lib/live.svelte';
   import { bps, bytes, maxOf } from '../lib/format';
-  import type { History, HistoryRange } from '../lib/types';
+  import type { Client, ClientRange, ClientSeries, ClientTraffic, History, HistoryRange } from '../lib/types';
 
   const RANGES: { v: HistoryRange; label: string; span: number }[] = [
     { v: '1h', label: '1H', span: 3600 }, { v: '24h', label: '24H', span: 86400 }, { v: '7d', label: '7D', span: 604800 },
@@ -21,10 +23,33 @@
     try { h = await getHistory(range); err = ''; } catch (e) { err = e instanceof Error ? e.message : String(e); }
     loading = false;
   }
-  onMount(() => { load(); const t = setInterval(load, 30000); const stop = live.start(); return () => { clearInterval(t); stop(); }; });
+  onMount(() => { load(); getClients().then((c) => (clientList = c)).catch(() => {}); const t = setInterval(() => { load(); loadClients(); }, 30000); const stop = live.start(); return () => { clearInterval(t); stop(); }; });
   $effect(() => { range; loading = true; load(); });
 
   const span = $derived(RANGES.find((r) => r.v === range)!.span);
+
+  // ---- per-client traffic (hourly data, up to 30 days)
+  const C_SPAN: Record<ClientRange, number> = { '24h': 86400, '7d': 604800, '30d': 2592000 };
+  const cRange = $derived<ClientRange>(range === '7d' ? '7d' : range === '30d' || range === '90d' ? '30d' : '24h');
+  let ct = $state<ClientTraffic | null>(null);
+  let clientList = $state<Client[]>([]);
+  let selClient = $state<ClientRow | null>(null);
+  let series = $state<ClientSeries | null>(null);
+  async function loadClients() { try { ct = await getClientTraffic(cRange); } catch { ct = null; } }
+  $effect(() => { cRange; loadClients(); });
+  const rows = $derived(clientRows(ct, clientList));
+  async function openClient(r: ClientRow) {
+    selClient = r; series = null;
+    try { series = await getClientSeries(r.mac, cRange); } catch { series = { t: [], rx: [], tx: [] }; }
+  }
+  const cGrid = $derived.by(() => {
+    if (!series?.now) return null;
+    const step = 3600, end = Math.ceil(series.now / step) * step, n = Math.ceil(C_SPAN[cRange] / step), start = end - n * step;
+    const data: Bucket[] = Array.from({ length: n }, (_, i) => ({ t: start + i * step, rx: 0, tx: 0 }));
+    series.t.forEach((t, i) => { const k = Math.floor((t - start) / step); if (k >= 0 && k < n) { data[k].rx += series!.rx[i]; data[k].tx += series!.tx[i]; } });
+    return { data, step, start, end, rx: sum(series.rx), tx: sum(series.tx) };
+  });
+  const cLabel = $derived(({ '24h': 'last 24 hours', '7d': 'last 7 days', '30d': 'last 30 days' } as const)[cRange]);
   const devices = $derived(Object.keys(h?.rx ?? {}));
   // default device: the WAN device when we know it, else the one with most traffic
   $effect(() => {
@@ -115,6 +140,33 @@
     </div>
 
     <div class="card" style="margin-top:16px">
+      <div class="card-title"><h2>Clients <span class="faint">· {cLabel}</span></h2>{#if range === '90d'}<span class="faint small">per-client data is kept for 30 days</span>{/if}</div>
+      {#if ct?.offload}
+        <p class="warn"><Icon name="alert" size={16} />Flow offloading is enabled on this router: established connections bypass the counters, so these numbers are lower than reality.</p>
+      {/if}
+      {#if !ct}
+        <p class="muted">Per-client data is unavailable. Deploy the latest collector (<code>npm run deploy</code>).</p>
+      {:else if !ct.enabled}
+        <p class="muted">Per-client accounting is turned off (<code>option clients '0'</code> in <code>/etc/config/lumen</code>).</p>
+      {:else if !rows.length}
+        <p class="muted">No client traffic recorded yet. Lumen counts what LAN devices send and receive <em>through</em> the router (mostly Internet use); it appears here a few minutes after the first connections.</p>
+      {:else}
+        <div class="tw"><table class="tbl">
+          <thead><tr><th>Client</th><th>Download</th><th>Upload</th><th>Total</th><th class="bar"></th></tr></thead>
+          <tbody>
+            {#each rows as r (r.mac)}
+              <tr class="click" tabindex="0" onclick={() => openClient(r)} onkeydown={(e) => e.key === 'Enter' && openClient(r)}>
+                <td><span class="who"><span class="cico"><Icon name={r.kind} size={16} /></span><span class="nm"><b>{r.name}</b><small class="faint">{r.sub}</small></span></span></td>
+                <td class="num" style="color:var(--rx)">{bytes(r.rx)}</td><td class="num" style="color:var(--tx)">{bytes(r.tx)}</td><td class="num"><b>{bytes(r.all)}</b></td>
+                <td class="bar"><i style:width="{r.pct}%"></i></td>
+              </tr>
+            {/each}
+          </tbody>
+        </table></div>
+      {/if}
+    </div>
+
+    <div class="card" style="margin-top:16px">
       <div class="card-title"><h2>By interface</h2></div>
       <div class="tw"><table class="tbl">
         <thead><tr><th>Interface</th><th>Received</th><th>Sent</th><th>Total</th><th class="bar"></th></tr></thead>
@@ -133,6 +185,21 @@
   {/if}
 </div>
 
+<Drawer open={!!selClient} title={selClient?.name ?? ''} onclose={() => { selClient = null; series = null; }}>
+  {#if selClient}
+    <p class="muted" style="margin-bottom:14px">{selClient.sub}</p>
+    {#if cGrid}
+      <HistoryChart data={cGrid.data} step={cGrid.step} start={cGrid.start} end={cGrid.end} height={170} labels={['Download', 'Upload']} />
+      <div style="margin-top:18px">
+        <div class="stat-row"><span>Downloaded</span><b class="num" style="color:var(--rx)">{bytes(cGrid.rx)}</b></div>
+        <div class="stat-row"><span>Uploaded</span><b class="num" style="color:var(--tx)">{bytes(cGrid.tx)}</b></div>
+        <div class="stat-row"><span>Period</span><b>{cLabel}</b></div>
+        {#if selClient.mac !== '?'}<div class="stat-row"><span>MAC</span><b class="mono">{selClient.mac}</b></div>{/if}
+      </div>
+    {:else}<p class="muted">Loading…</p>{/if}
+  {/if}
+</Drawer>
+
 <style>
   .tools { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
   .sel { width: auto; min-width: 150px; }
@@ -141,6 +208,13 @@
   .k { color: var(--text-2); font-size: 13px; }
   .v { font-size: 24px; font-weight: 650; display: inline-flex; align-items: center; gap: 4px; }
   .v.sm { font-size: 16px; line-height: 1.5; }
+  .small { font-size: 12px; }
+  .warn { display: flex; gap: 8px; align-items: center; background: color-mix(in srgb, var(--warn) 14%, transparent); border-radius: 8px; padding: 9px 12px; font-size: 13px; margin: -4px 0 12px; }
+  .warn :global(svg) { color: var(--warn); flex: none; }
+  .who { display: inline-flex; align-items: center; gap: 12px; }
+  .cico { width: 30px; height: 30px; border-radius: 8px; background: var(--surface-2); color: var(--text-2); display: grid; place-items: center; flex: none; }
+  .nm { display: grid; line-height: 1.25; } .nm small { font-size: 12px; }
+  code { background: var(--surface-2); padding: 1px 6px; border-radius: 5px; font-size: 12.5px; }
   .legend { font-size: 13px; color: var(--text-2); display: inline-flex; align-items: center; gap: 6px; }
   .legend i { width: 9px; height: 9px; border-radius: 3px; display: inline-block; margin-left: 10px; }
   .dim { opacity: .7; transition: opacity .15s; }

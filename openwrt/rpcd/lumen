@@ -4,9 +4,12 @@
 // threaded and would deadlock on itself. Wifi data is fetched by the frontend instead.
 'use strict';
 
-import { readfile, lsdir } from 'fs';
+import { readfile, lsdir, stat } from 'fs';
+import { cursor } from 'uci';
 
 const HISTORY_FILE = '/tmp/lumen/history.json';
+const CLIENTS_FILE = '/tmp/lumen/clients.json';
+const CL_RANGES = { '24h': 86400, '7d': 7 * 86400, '30d': 30 * 86400 };
 const RANGES = { '1h': 3600, '24h': 86400, '7d': 7 * 86400, '30d': 30 * 86400, '90d': 90 * 86400 };
 
 function mac_from(s, o) {
@@ -135,7 +138,65 @@ function history(range) {
 	return out;
 }
 
+
+// ---- per-client traffic (hourly buckets written by the collector)
+function clients_file() {
+	let raw = readfile(CLIENTS_FILE);
+	if (!raw) return null;
+	let d = json(raw);
+	return d?.hour ? d : null;
+}
+
+function collector_cfg() {
+	let c = cursor();
+	return {
+		interval: int(c.get('lumen', 'history', 'interval') ?? 300),
+		enabled: (c.get('lumen', 'history', 'clients') ?? '1') != '0',
+		// with flow offloading, established flows bypass the forward hook, so counters under-report
+		offload: (c.get('firewall', '@defaults[0]', 'flow_offloading') ?? '0') == '1' || (c.get('firewall', '@defaults[0]', 'flow_offloading_hw') ?? '0') == '1',
+	};
+}
+
+function clients(range) {
+	let span = CL_RANGES[range] ?? 86400, cfg = collector_cfg();
+	let d = clients_file();
+	let out = { enabled: cfg.enabled, offload: cfg.offload, running: false };
+	if (!d) return out;
+	let now = time(), st = stat(CLIENTS_FILE);
+	out.running = now - (st?.mtime ?? 0) < 3 * cfg.interval + 30;
+	out.now = now;
+	out.since = length(d.hour.t) ? d.hour.t[0] : null;
+	out.totals = {};
+	let from = 0;
+	while (from < length(d.hour.t) && d.hour.t[from] + 3600 <= now - span) from++;
+	for (let mac in keys(d.hour.d)) {
+		let rx = 0, tx = 0;
+		for (let i = from; i < length(d.hour.t); i++) { rx += d.hour.d[mac].rx[i]; tx += d.hour.d[mac].tx[i]; }
+		if (rx || tx) out.totals[mac] = [rx, tx];
+	}
+	return out;
+}
+
+function client_series(mac, range) {
+	let span = CL_RANGES[range] ?? 86400;
+	let d = clients_file();
+	if (!d || !(mac in d.hour.d)) return { t: [], rx: [], tx: [] };
+	let now = time(), from = 0;
+	while (from < length(d.hour.t) && d.hour.t[from] + 3600 <= now - span) from++;
+	return { now, step: 3600, t: slice(d.hour.t, from), rx: slice(d.hour.d[mac].rx, from), tx: slice(d.hour.d[mac].tx, from) };
+}
+
 const methods = {
+	clients: {
+		args: { range: 'range' },
+		call: function(request) { return clients(request.args?.range); }
+	},
+
+	client: {
+		args: { mac: 'mac', range: 'range' },
+		call: function(request) { return client_series(lc(request.args?.mac ?? ''), request.args?.range); }
+	},
+
 	history: {
 		args: { range: 'range' },
 		call: function(request) { return history(request.args?.range); }

@@ -2,7 +2,7 @@
   import { bps, bytes, maxOf } from '../lib/format';
 
   export interface Bucket { t: number; rx: number; tx: number }   // bytes in the bucket
-  let { data = [], step, start, end, height = 260 }: { data: Bucket[]; step: number; start: number; end: number; height?: number } = $props();
+  let { data = [], step, start, end, height = 260, labels = ['Received', 'Sent'] }: { data: Bucket[]; step: number; start: number; end: number; height?: number; labels?: [string, string] } = $props();
 
   const W = 900;
   let hover = $state<number | null>(null);
@@ -54,8 +54,8 @@
   {#if hp}
     <div class="tip" style:left="{(x(hp.t) / W) * 100}%" class:flip={x(hp.t) / W > 0.65}>
       <time>{when(hp.t)}</time>
-      <div><i style="background:var(--rx)"></i>Received <b class="num">{bytes(hp.rx)}</b> <span class="faint">{bps(hp.rx / step)}</span></div>
-      <div><i style="background:var(--tx)"></i>Sent <b class="num">{bytes(hp.tx)}</b> <span class="faint">{bps(hp.tx / step)}</span></div>
+      <div><i style="background:var(--rx)"></i>{labels[0]} <b class="num">{bytes(hp.rx)}</b> <span class="faint">{bps(hp.rx / step)}</span></div>
+      <div><i style="background:var(--tx)"></i>{labels[1]} <b class="num">{bytes(hp.tx)}</b> <span class="faint">{bps(hp.tx / step)}</span></div>
     </div>
   {/if}
   {#if !data.length}<p class="empty muted">No data in this range yet</p>{/if}

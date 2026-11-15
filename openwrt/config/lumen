@@ -4,3 +4,7 @@ config history 'history'
 	# optional: file to mirror the history to once an hour so it survives reboots,
 	# e.g. /mnt/sda1/lumen-history.json (leave empty to keep history in RAM only)
 	option persist ''
+	# per-client traffic accounting via nftables counters (1 = on, 0 = off)
+	option clients '1'
+	# also count traffic between clients and the router itself (DNS, web UI...); normally off
+	option count_local '0'

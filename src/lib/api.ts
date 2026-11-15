@@ -1,5 +1,5 @@
 import { batch, call } from './ubus';
-import type { History, HistoryRange, Service, Stats, Board, Client, ClientKind, ClientLink, HostHint, Lease, NetDevice, NetInterface, NetworkMap, SystemInfo, WifiIface } from './types';
+import type { ClientRange, ClientSeries, ClientTraffic, History, HistoryRange, Service, Stats, Board, Client, ClientKind, ClientLink, HostHint, Lease, NetDevice, NetInterface, NetworkMap, SystemInfo, WifiIface } from './types';
 
 export const getBoard = () => call<Board>('system', 'board');
 export const getSystem = () => call<SystemInfo>('system', 'info');
@@ -126,3 +126,6 @@ export async function getServices(): Promise<Service[]> {
 }
 
 export const getHistory = (range: HistoryRange) => call<History>('lumen', 'history', { range });
+
+export const getClientTraffic = (range: ClientRange) => call<ClientTraffic>('lumen', 'clients', { range });
+export const getClientSeries = (mac: string, range: ClientRange) => call<ClientSeries>('lumen', 'client', { mac, range });

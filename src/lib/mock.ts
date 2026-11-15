@@ -152,6 +152,25 @@ export async function mockCall(obj: string, method: string, args: any = {}): Pro
       return { results: HOSTS.filter(([, n]) => WIFI[n]?.[0] === args.device).map(([mac, n]) => ({
         mac, signal: WIFI[n][1], noise: -95, rx: { rate: args.device === 'phy0-ap0' ? 866000 : 144000 }, tx: { rate: args.device === 'phy0-ap0' ? 780000 : 130000 },
       })) };
+    case 'lumen.clients': {
+      const mult = ({ '24h': 1, '7d': 6.2, '30d': 24 } as Record<string, number>)[args.range] ?? 1;
+      const base: Record<string, number> = { 'A4:83:E7:11:22:01': 3.2, 'F0:18:98:0B:3C:02': 7.5, 'DC:A6:32:4F:19:03': 1.1, '3C:5A:B4:77:AA:04': 5.1, '00:11:32:AB:CD:05': 11.8, 'B8:27:EB:90:12:06': 0.05, 'C8:2B:96:33:44:07': 0.02, '64:16:66:AA:BB:08': 2.4, '9C:B6:D0:12:34:09': 14.6, '50:DE:06:55:66:0A': 6.3, 'AC:84:C6:99:88:0C': 1.9 };
+      const totals: Record<string, [number, number]> = {};
+      for (const [m, gb] of Object.entries(base)) totals[m.toLowerCase()] = [Math.round(gb * 1e9 * mult), Math.round(gb * 1e9 * mult * (0.06 + (m.charCodeAt(3) % 7) / 40))];
+      totals['?'] = [Math.round(0.4e9 * mult), Math.round(0.03e9 * mult)];
+      return { enabled: true, offload: false, running: true, now: Math.floor(Date.now() / 1000), since: Math.floor(Date.now() / 1000) - 40 * 86400, totals };
+    }
+    case 'lumen.client': {
+      const span = ({ '24h': 86400, '7d': 604800, '30d': 2592000 } as Record<string, number>)[args.range] ?? 86400;
+      const now = Math.floor(Date.now() / 1000), n = Math.floor(span / 3600), t: number[] = [], rx: number[] = [], tx: number[] = [];
+      let seed = 0; for (const ch of String(args.mac)) seed += ch.charCodeAt(0);
+      for (let i = 0; i < n; i++) {
+        const ts = now - (n - i) * 3600; t.push(ts);
+        const hour = ((ts % 86400) / 3600 + 1) % 24, on = Math.max(0, Math.sin(((hour - 7) / 16) * Math.PI)) * (0.4 + ((seed + i * 7) % 10) / 10);
+        rx.push(Math.round(on * 600e6 * (0.3 + Math.random()))); tx.push(Math.round(on * 40e6 * (0.3 + Math.random())));
+      }
+      return { now, step: 3600, t, rx, tx };
+    }
     case 'lumen.history': {
       const span = ({ '1h': 3600, '24h': 86400, '7d': 604800, '30d': 2592000, '90d': 7776000 } as Record<string, number>)[args.range] ?? 86400;
       const fine = span <= 604800, step = fine ? 300 : 3600, now = Math.floor(Date.now() / 1000);

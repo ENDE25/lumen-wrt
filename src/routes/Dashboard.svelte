@@ -6,15 +6,17 @@
   import Icon from '../components/Icon.svelte';
   import LineChart from '../components/LineChart.svelte';
   import { live } from '../lib/live.svelte';
-  import { getBoard, getClients, getServices, isFailed } from '../lib/api';
+  import { getBoard, getClientTraffic, getClients, getServices, isFailed } from '../lib/api';
+  import { clientRows } from '../lib/clientstats';
   import { memory, maxTemp, tempTone } from '../lib/derive';
   import { bps, bytes, duration, load, pct, cidr } from '../lib/format';
-  import type { Board, Client, Service } from '../lib/types';
+  import type { Board, Client, ClientTraffic, Service } from '../lib/types';
 
   let board = $state<Board | null>(null);
   let clients = $state<Client[]>([]);
   let picked = $state<string>('');
   let services = $state<Service[]>([]);
+  let ct = $state<ClientTraffic | null>(null);
 
   onMount(() => {
     const stop = live.start();
@@ -22,8 +24,9 @@
     const refresh = () => getClients().then((c) => (clients = c)).catch(() => {});
     refresh();
     const svc = () => getServices().then((x) => (services = x)).catch(() => {});
-    svc();
-    const t = setInterval(() => { refresh(); svc(); }, 10000);
+    const traffic = () => getClientTraffic('24h').then((x) => (ct = x)).catch(() => {});
+    svc(); traffic();
+    const t = setInterval(() => { refresh(); svc(); traffic(); }, 10000);
     return () => { stop(); clearInterval(t); };
   });
 
@@ -36,6 +39,7 @@
   const cpuNow = $derived(live.cpuHist[live.cpuHist.length - 1] ?? 0);
   const temp = $derived(maxTemp(live.stats));
   const down = $derived(services.filter(isFailed));
+  const top = $derived(clientRows(ct, clients).slice(0, 5));
   const rootUsed = $derived(sys ? pct(sys.root.used, sys.root.total) : 0);
   const gw = $derived(wan?.route?.find((r) => r.target === '0.0.0.0')?.nexthop);
 
@@ -189,6 +193,23 @@
           {/if}
         </div>
       </div>
+
+      <div class="card">
+        <div class="card-title"><h2>Top clients <span class="faint">· last 24 hours</span></h2><a href="#/traffic">View traffic</a></div>
+        {#if top.length}
+          <ul class="topc">
+            {#each top as r (r.mac)}
+              <li>
+                <span class="cico"><Icon name={r.kind} size={16} /></span>
+                <span class="nm"><b>{r.name}</b><i style:width="{r.pct}%"></i></span>
+                <span class="num amt"><span style="color:var(--rx)">↓ {bytes(r.rx)}</span> <span style="color:var(--tx)">↑ {bytes(r.tx)}</span></span>
+              </li>
+            {/each}
+          </ul>
+        {:else}
+          <p class="muted">{ct && !ct.enabled ? 'Per-client accounting is turned off.' : 'Nothing recorded yet. Per-client usage appears here once devices start using the router.'}</p>
+        {/if}
+      </div>
     </section>
   </div>
 </div>
@@ -217,6 +238,13 @@
   .port.off { color: var(--text-3); }
   .legend { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 16px; font-size: 12px; color: var(--text-2); }
   .legend i { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-right: 5px; }
+  .topc { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+  .topc li { display: flex; align-items: center; gap: 12px; }
+  .cico { width: 30px; height: 30px; border-radius: 8px; background: var(--surface-2); color: var(--text-2); display: grid; place-items: center; flex: none; }
+  .nm { flex: 1; min-width: 0; display: grid; gap: 5px; font-size: 13.5px; }
+  .nm b { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .nm i { display: block; height: 5px; border-radius: 99px; background: var(--accent); opacity: .75; min-width: 3px; }
+  .amt { display: flex; gap: 14px; font-size: 13px; white-space: nowrap; }
   .row2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
   .big { font-size: 22px; font-weight: 650; }
   .foot { margin-top: 10px; font-size: 12.5px; }

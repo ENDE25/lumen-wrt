@@ -3,7 +3,7 @@
 A modern admin panel for **OpenWrt**, built as an alternative to LuCI. Its look and feel is inspired
 by professional network consoles: a compact icon rail, cards, live charts and slide-over detail panels.
 
-> Status: **v0.5 (in development)**. Dashboards plus safe configuration of DHCP/DNS, the firewall and Wi-Fi.
+> Status: **v0.6 (in development)**. Dashboards plus safe configuration of DHCP/DNS, the firewall and Wi-Fi.
 
 ## How it works
 
@@ -15,6 +15,12 @@ uhttpd serves the files and rpcd is the API, enforcing its ACLs.
 - ~45 KB of gzipped JS: fits routers with little flash.
 - One batched request every 2 s feeds every page (`src/lib/live.svelte.ts`).
 - `lumen-history`, a small procd service (ucode), records per-interface byte counters; the UI reads it through `lumen.history`.
+- The same service does **per-client accounting**: it loads its own nftables table `inet lumen` (it survives
+  firewall reloads and is removed when the service stops) whose dynamic sets carry one counter per client
+  address, maps addresses to MACs through the ARP/NDP tables and keeps hourly buckets. Limits: it counts
+  traffic *routed through* the router (LAN <-> Internet or between subnets), not frames switched inside a
+  bridge, and it under-counts when firewall **flow offloading** is enabled (the UI warns about it).
+  `/etc/config/lumen`: `interval`, `persist`, `clients` (0 disables it), `count_local` (also count traffic to the router itself).
 - A tiny rpcd ucode plugin (`openwrt/rpcd/lumen`) adds what stock ubus lacks: bridge forwarding
   table (which port a client sits behind) and container-correct host stats from `/proc`.
   It must never call rpcd's own objects (rpcd is single-threaded and would deadlock).
@@ -62,7 +68,7 @@ scripts/         deploy.sh
 - [x] Firewall: port forwards, traffic rules (with ordering), zones and forwardings (always manual-confirm)
 - [x] Wi-Fi: radios, SSIDs (WPA2/WPA3/OWE/open), connected clients, kick — *developed against the demo mock; not yet verified on hardware*
 - [x] Traffic history: tiny ucode collector (procd) keeping 5-min buckets for 7 days and hourly for 90 days, in RAM by default (`/etc/config/lumen` can mirror it to a file via `persist`)
-- [ ] Per-client traffic (nftables counters)
+- [x] Per-client traffic: nftables per-element counters (table `inet lumen`, forward hook, IPv4+IPv6) mapped to MACs, hourly buckets kept 30 days
 - [ ] Installable package (`apk`/`opkg`) with its own rpcd ACL
 - [ ] Package management and firmware upgrades
 - [ ] Internationalisation (English only for now)

@@ -134,3 +134,14 @@ export interface History {
   rx?: Record<string, number[]>; // bytes received per bucket, per device
   tx?: Record<string, number[]>;
 }
+
+export type ClientRange = '24h' | '7d' | '30d';
+export interface ClientTraffic {
+  enabled: boolean;
+  offload: boolean;            // flow offloading on: counters under-report
+  running: boolean;
+  now?: number;
+  since?: number | null;
+  totals?: Record<string, [number, number]>;   // mac -> [download, upload] bytes
+}
+export interface ClientSeries { now?: number; step?: number; t: number[]; rx: number[]; tx: number[] }

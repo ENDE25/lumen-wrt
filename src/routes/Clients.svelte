@@ -3,11 +3,13 @@
   import Icon from '../components/Icon.svelte';
   import Drawer from '../components/Drawer.svelte';
   import SignalBars from '../components/SignalBars.svelte';
-  import { getClients } from '../lib/api';
-  import { duration } from '../lib/format';
-  import type { Client } from '../lib/types';
+  import { getClientTraffic, getClients } from '../lib/api';
+  import { bytes, duration } from '../lib/format';
+  import type { Client, ClientTraffic } from '../lib/types';
 
   let clients = $state<Client[]>([]);
+  let ct = $state<ClientTraffic | null>(null);
+  const usage = (c: Client) => ct?.totals?.[c.mac.toLowerCase()];
   let q = $state('');
   let loaded = $state(false);
   let sel = $state<Client | null>(null);
@@ -15,7 +17,8 @@
 
   onMount(() => {
     const go = () => getClients().then((c) => { clients = c; loaded = true; }).catch(() => (loaded = true));
-    go(); const t = setInterval(go, 10000);
+    const traffic = () => getClientTraffic('24h').then((x) => (ct = x)).catch(() => {});
+    go(); traffic(); const t = setInterval(() => { go(); traffic(); }, 10000);
     return () => clearInterval(t);
   });
 
@@ -55,6 +58,7 @@
         <th>Connection</th>
         <th>MAC</th>
         <th><button onclick={() => toggle('kind')}>Type{arrow('kind')}</button></th>
+        <th>Last 24h</th>
         <th>DHCP lease</th>
       </tr></thead>
       <tbody>
@@ -66,10 +70,11 @@
             <td>{#if c.link?.type === 'wifi'}<span class="conn"><Icon name="wifi" size={15} />{c.link.ssid}<SignalBars dbm={c.link.signal} /></span>{:else if c.link}<span class="conn"><Icon name="devices" size={15} />{c.link.dev}</span>{:else}<span class="faint">—</span>{/if}</td>
             <td class="mono muted">{c.mac}</td>
             <td>{KIND[c.kind]}</td>
+            <td class="num">{#if usage(c)}<span style="color:var(--rx)">↓ {bytes(usage(c)![0])}</span> <span style="color:var(--tx)">↑ {bytes(usage(c)![1])}</span>{:else}<span class="faint">—</span>{/if}</td>
             <td class="muted">{lease(c)}</td>
           </tr>
         {:else}
-          <tr><td colspan="6" class="empty muted">{loaded ? 'No matching clients.' : 'Loading…'}</td></tr>
+          <tr><td colspan="7" class="empty muted">{loaded ? 'No matching clients.' : 'Loading…'}</td></tr>
         {/each}
       </tbody>
     </table>
@@ -84,6 +89,7 @@
     {#if sel.link?.signal !== undefined}<div class="stat-row"><span>Signal</span><b class="num">{sel.link.signal} dBm</b></div>{/if}
     <div class="stat-row"><span>MAC</span><b class="mono">{sel.mac}</b></div>
     <div class="stat-row"><span>DHCP lease</span><b>{lease(sel)}</b></div>
+    {#if usage(sel)}<div class="stat-row"><span>Last 24h</span><b class="num"><span style="color:var(--rx)">↓ {bytes(usage(sel)![0])}</span> <span style="color:var(--tx)">↑ {bytes(usage(sel)![1])}</span></b></div>{/if}
     {#each sel.ip6 as a}<div class="stat-row"><span>IPv6</span><b class="mono">{a}</b></div>{/each}
   {/if}
 </Drawer>
