@@ -101,6 +101,8 @@ export interface Client {
   hostname?: string;    // name reported by DHCP/DNS (`name` is the custom name when one is set)
   alias?: boolean;      // `name` is a custom name stored in /etc/config/lumen
   aliasSection?: string;
+  kindOverride?: ClientKind;  // device type chosen by hand
+  detectedKind?: ClientKind;  // what we would have guessed (hostname / vendor)
   vendor?: string;      // from the MAC prefix
   brand?: string;       // logo key
   randomMac?: boolean;  // private/locally-administered address

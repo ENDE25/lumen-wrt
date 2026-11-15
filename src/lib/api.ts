@@ -1,5 +1,6 @@
 import { batch, call } from './ubus';
 import { loadVendors, lookup } from './vendor';
+import { isKind } from './kinds';
 import type { ClientRange, ClientSeries, ClientTraffic, History, HistoryRange, Service, Stats, Board, Client, ClientKind, ClientLink, HostHint, Lease, NetDevice, NetInterface, NetworkMap, SystemInfo, WifiIface } from './types';
 
 export const getBoard = () => call<Board>('system', 'board');
@@ -52,9 +53,10 @@ export async function getNetworkMap(): Promise<NetworkMap> {
   ]);
 
   // Custom names the user gave to devices (stored per MAC in /etc/config/lumen)
-  const aliases = new Map<string, { section: string; name: string }>();
+  const aliases = new Map<string, { section: string; name?: string; kind?: ClientKind }>();
   for (const sec of Object.values<any>(lumenCfg?.values ?? {}))
-    if (sec['.type'] === 'client' && sec.mac && sec.name) aliases.set(String(sec.mac).toLowerCase(), { section: sec['.name'], name: String(sec.name) });
+    if (sec['.type'] === 'client' && sec.mac && (sec.name || sec.kind))
+      aliases.set(String(sec.mac).toLowerCase(), { section: sec['.name'], name: sec.name ? String(sec.name) : undefined, kind: isKind(sec.kind) ? sec.kind : undefined });
 
   // The router itself is not a "client": hide every MAC / IP that belongs to it.
   const ownMacs = new Set<string>(Object.values<any>(devs ?? {}).map((d) => String(d.macaddr ?? '').toLowerCase()).filter(Boolean));
@@ -101,8 +103,8 @@ export async function getNetworkMap(): Promise<NetworkMap> {
     else if (neighDev.has(m)) link = { type: 'wired', dev: neighDev.get(m)! };
     const al = aliases.get(m);
     clients.push({
-      mac, name: al?.name ?? name, hostname: name || undefined, alias: !!al, aliasSection: al?.section, ip: h.ipaddrs?.[0] ?? lease?.ipaddr ?? '', ip6: h.ip6addrs ?? [],
-      kind: kindOf(name) !== 'unknown' || !al ? kindOf(name) : kindOf(al.name), leaseExpires: lease?.expires, static: !lease, link,
+      mac, name: al?.name || name, hostname: name || undefined, alias: !!al?.name, aliasSection: al?.section, kindOverride: al?.kind, ip: h.ipaddrs?.[0] ?? lease?.ipaddr ?? '', ip6: h.ip6addrs ?? [],
+      kind: kindOf(name) !== 'unknown' || !al?.name ? kindOf(name) : kindOf(al.name), leaseExpires: lease?.expires, static: !lease, link,
     });
   }
   // Vendor from the MAC prefix: names, logos, and a category when the hostname told us nothing.
@@ -111,6 +113,9 @@ export async function getNetworkMap(): Promise<NetworkMap> {
     const v = lookup(c.mac);
     c.vendor = v.vendor ?? undefined; c.brand = v.brand; c.randomMac = v.randomized;
     if (c.kind === 'unknown' && v.kind) c.kind = v.kind;
+    c.detectedKind = c.kind;
+    // A type picked by hand wins over every guess, and shows its category icon instead of a brand logo.
+    if (c.kindOverride) { c.kind = c.kindOverride; c.brand = undefined; }
   }
   clients.sort((a, b) => ipNum(a.ip) - ipNum(b.ip));
   return { clients, wifi, bridges };
@@ -148,15 +153,26 @@ export const getHistory = (range: HistoryRange) => call<History>('lumen', 'histo
 export const getClientTraffic = (range: ClientRange) => call<ClientTraffic>('lumen', 'clients', { range });
 export const getClientSeries = (mac: string, range: ClientRange) => call<ClientSeries>('lumen', 'client', { mac, range });
 
-/** Give a device a custom name (empty = remove it). Names are stored per MAC in /etc/config/lumen. */
-export async function saveAlias(mac: string, name: string, section?: string): Promise<void> {
-  const clean = name.replace(/[\u0000-\u001f]/g, '').trim().slice(0, 40);
-  if (!clean) {
+/**
+ * Save what the user told us about a device: a custom name and/or a device type. Both are stored in one
+ * `config client` section per MAC in /etc/config/lumen; leaving both empty removes the section.
+ */
+export async function saveAlias(
+  client: Pick<Client, 'mac' | 'alias' | 'aliasSection' | 'kindOverride'>,
+  next: { name: string; kind: ClientKind | '' },
+): Promise<void> {
+  const name = next.name.replace(/[\u0000-\u001f]/g, '').trim().slice(0, 40), kind = next.kind, section = client.aliasSection;
+  if (!name && !kind) {
     if (section) await call('uci', 'delete', { config: 'lumen', section });
-  } else if (section) {
-    await call('uci', 'set', { config: 'lumen', section, values: { name: clean } });
+  } else if (!section) {
+    await call('uci', 'add', { config: 'lumen', type: 'client', values: { mac: client.mac.toUpperCase(), ...(name ? { name } : {}), ...(kind ? { kind } : {}) } });
   } else {
-    await call('uci', 'add', { config: 'lumen', type: 'client', values: { mac: mac.toUpperCase(), name: clean } });
+    const values: Record<string, string> = {};
+    if (name) values.name = name;
+    if (kind) values.kind = kind;
+    if (Object.keys(values).length) await call('uci', 'set', { config: 'lumen', section, values });
+    if (!name && client.alias) await call('uci', 'delete', { config: 'lumen', section, option: 'name' });
+    if (!kind && client.kindOverride) await call('uci', 'delete', { config: 'lumen', section, option: 'kind' });
   }
   await call('uci', 'commit', { config: 'lumen' });
 }

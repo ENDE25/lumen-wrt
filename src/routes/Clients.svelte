@@ -3,6 +3,7 @@
   import Icon from '../components/Icon.svelte';
   import Glyph from '../components/Glyph.svelte';
   import ClientNameEditor from '../components/ClientNameEditor.svelte';
+  import { KIND_LABEL } from '../lib/kinds';
   import Drawer from '../components/Drawer.svelte';
   import SignalBars from '../components/SignalBars.svelte';
   import { getClientTraffic, getClients } from '../lib/api';
@@ -26,10 +27,7 @@
     return () => clearInterval(t);
   });
 
-  const KIND: Record<string, string> = {
-    phone: 'Phone', laptop: 'Laptop', desktop: 'Desktops', tv: 'TV', printer: 'Printer',
-    iot: 'IoT', server: 'Server', router: 'Network', console: 'Console', camera: 'Camera', speaker: 'Speaker', unknown: 'Unknown',
-  };
+  const KIND = KIND_LABEL;
   const rows = $derived.by(() => {
     const s = q.trim().toLowerCase();
     let r = s ? clients.filter((c) => [c.name, c.ip, c.mac, c.vendor ?? '', KIND[c.kind]].some((v) => v.toLowerCase().includes(s))) : clients;
