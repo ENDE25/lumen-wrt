@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import Icon from '../components/Icon.svelte';
   import Glyph from '../components/Glyph.svelte';
+  import ClientNameEditor from '../components/ClientNameEditor.svelte';
   import Drawer from '../components/Drawer.svelte';
   import SignalBars from '../components/SignalBars.svelte';
   import { live } from '../lib/live.svelte';
@@ -16,10 +17,12 @@
   let sel = $state<GNode | null>(null);
   let boxW = $state(1200);
 
+  const reload = () => getNetworkMap().then((m) => { map = m; loaded = true; }).catch(() => (loaded = true));
+
   onMount(() => {
     const stop = live.start();
     getBoard().then((b) => (board = b)).catch(() => {});
-    const go = () => getNetworkMap().then((m) => { map = m; loaded = true; }).catch(() => (loaded = true));
+    const go = reload;
     go(); const t = setInterval(go, 6000);
     return () => { stop(); clearInterval(t); };
   });
@@ -27,9 +30,12 @@
   const g = $derived(buildGraph({ board, interfaces: live.interfaces, devices: live.devices, ...map }));
   const scale = $derived(Math.min(1, boxW / g.width));
   const byId = $derived(new Map(g.nodes.map((n) => [n.id, n])));
-  const path = (a: GNode, b: GNode) => {
-    const x1 = a.x + a.w, y1 = a.y + a.h / 2, x2 = b.x, y2 = b.y + b.h / 2, dx = (x2 - x1) / 2;
-    return `M${x1},${y1} C${x1 + dx},${y1} ${x2 - dx},${y2} ${x2},${y2}`;
+  // Where a link leaves a node: the Internet globe has no box, so it starts next to the globe itself.
+  const outPt = (a: GNode) => (a.kind === 'internet' ? { x: a.x + a.w / 2 + 30, y: a.y + 26 } : { x: a.x + a.w, y: a.y + a.h / 2 });
+  // Router -> ports/SSIDs are straight; ports/SSIDs -> clients are smooth curves.
+  const path = (a: GNode, b: GNode, curve: boolean) => {
+    const { x: x1, y: y1 } = outPt(a), x2 = b.x, y2 = b.y + b.h / 2, dx = (x2 - x1) / 2;
+    return curve ? `M${x1},${y1} C${x1 + dx},${y1} ${x2 - dx},${y2} ${x2},${y2}` : `M${x1},${y1} L${x2},${y2}`;
   };
   const cur = $derived(sel ? g.nodes.find((n) => n.id === sel!.id) ?? sel : null);
   const mbps = (k?: number) => (k ? `${Math.round(k / 1000)} Mb/s` : '—');
@@ -58,16 +64,16 @@
             {#each g.links as l (l.id)}
               {@const a = byId.get(l.from)} {@const b = byId.get(l.to)}
               {#if a && b}
-                <path d={path(a, b)} class="link" class:wifi={l.wifi} class:down={!l.up} class:hub={l.from === 'router' || l.to === 'router'} />
-                {#if l.label}<text x={(a.x + a.w + b.x) / 2} y={a.y + a.h / 2 - 8} text-anchor="middle">{l.label}</text>{/if}
+                <path d={path(a, b, l.curve)} class="link" class:wifi={l.wifi} class:down={!l.up} class:hub={l.from === 'router' || l.to === 'router'} />
+                {#if l.label}<text x={(outPt(a).x + b.x) / 2} y={outPt(a).y - 8} text-anchor="middle">{l.label}</text>{/if}
               {/if}
             {/each}
           </svg>
           {#each g.nodes as n (n.id)}
             <button class="node {n.kind}" class:off={!n.up} class:active={cur?.id === n.id}
               style:left="{n.x}px" style:top="{n.y}px" style:width="{n.w}px" style:height="{n.h}px" onclick={() => open(n)}>
-              <span class="ico"><Glyph brand={n.brand} icon={n.icon} size={n.kind === 'router' || n.kind === 'internet' ? 26 : 18} /></span>
-              <span class="txt"><b>{n.title}</b><small>{n.sub}</small></span>
+              <span class="ico"><Glyph brand={n.brand} icon={n.icon} size={n.kind === 'internet' ? 46 : n.kind === 'router' ? 26 : 18} /></span>
+              <span class="txt"><b>{n.title}</b>{#if n.sub}<small>{n.sub}</small>{/if}{#if n.sub2}<small class="mac">{n.sub2}</small>{/if}</span>
               {#if n.kind === 'client' && n.client?.link?.type === 'wifi'}<span class="sig"><SignalBars dbm={n.client.link.signal} /></span>{/if}
               {#if (n.kind === 'port' || n.kind === 'ssid')}<span class="count">{n.count}</span>{/if}
             </button>
@@ -82,6 +88,7 @@
   {#if cur}
     {#if cur.kind === 'client' && cur.client}
       {@const c = cur.client}
+      {#key c.mac}<ClientNameEditor client={c} onsaved={reload} />{/key}
       <div class="stat-row"><span>Vendor</span><b>{c.vendor ?? (c.randomMac ? 'Private address' : 'Unknown')}</b></div>
       <div class="stat-row"><span>IP address</span><b class="num">{c.ip || '—'}</b></div>
       <div class="stat-row"><span>MAC</span><b class="mono">{c.mac}</b></div>
@@ -161,7 +168,15 @@
   .txt small { color: var(--text-2); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .count { flex: none; min-width: 22px; height: 22px; padding: 0 6px; display: grid; place-items: center; border-radius: 99px; background: var(--surface-2); font-size: 12px; font-weight: 600; color: var(--text-2); }
   .sig { flex: none; display: grid; }
-  .internet { border-style: dashed; }
+  /* Internet is drawn as a globe over the word, with no box */
+  .node.internet { flex-direction: column; justify-content: flex-start; align-items: center; gap: 5px; padding: 0; text-align: center; background: none; border: 0; box-shadow: none; }
+  .node.internet:hover { background: none; box-shadow: none; }
+  .node.internet:hover .ico { color: color-mix(in srgb, var(--accent) 80%, var(--text)); }
+  .node.internet.active .ico { filter: drop-shadow(0 0 8px color-mix(in srgb, var(--accent) 45%, transparent)); }
+  .node.internet .ico { width: 52px; height: 52px; background: none; color: var(--accent); border-radius: 0; }
+  .node.internet .txt { flex: none; justify-items: center; }
+  .node.internet .txt b { font-size: 15px; }
+  .txt .mac { font-family: var(--mono); font-size: 11.5px; color: var(--text-3); }
 
   .leg { display: flex; gap: 18px; align-items: center; font-size: 13px; color: var(--text-2); }
   .leg i.ln { display: inline-block; width: 22px; height: 0; border-top: 2px solid var(--text-3); margin-right: 8px; vertical-align: middle; }

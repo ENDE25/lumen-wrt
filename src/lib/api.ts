@@ -44,11 +44,17 @@ const bandOf = (mhz?: number) => !mhz ? '' : mhz < 3000 ? '2.4 GHz' : mhz < 5900
 
 /** Clients plus how each one is attached (port / SSID). One batch + one wifi batch. */
 export async function getNetworkMap(): Promise<NetworkMap> {
-  const [hints, leases, topo, radios, devs, ifs] = await batch([
+  const [hints, leases, topo, radios, devs, ifs, lumenCfg] = await batch([
     ['luci-rpc', 'getHostHints'], ['luci-rpc', 'getDHCPLeases'],
     ['lumen', 'topology'], ['luci-rpc', 'getWirelessDevices'],
     ['network.device', 'status'], ['network.interface', 'dump'],
+    ['uci', 'get', { config: 'lumen' }],
   ]);
+
+  // Custom names the user gave to devices (stored per MAC in /etc/config/lumen)
+  const aliases = new Map<string, { section: string; name: string }>();
+  for (const sec of Object.values<any>(lumenCfg?.values ?? {}))
+    if (sec['.type'] === 'client' && sec.mac && sec.name) aliases.set(String(sec.mac).toLowerCase(), { section: sec['.name'], name: String(sec.name) });
 
   // The router itself is not a "client": hide every MAC / IP that belongs to it.
   const ownMacs = new Set<string>(Object.values<any>(devs ?? {}).map((d) => String(d.macaddr ?? '').toLowerCase()).filter(Boolean));
@@ -93,9 +99,10 @@ export async function getNetworkMap(): Promise<NetworkMap> {
     if (wf) link = { type: 'wifi', dev: wf.w.ifname, ssid: wf.w.ssid, band: wf.w.band, signal: wf.c.signal, rx: wf.c.rx, tx: wf.c.tx };
     else if (fdbPort.has(m)) link = { type: 'wired', dev: fdbPort.get(m)! };
     else if (neighDev.has(m)) link = { type: 'wired', dev: neighDev.get(m)! };
+    const al = aliases.get(m);
     clients.push({
-      mac, name, ip: h.ipaddrs?.[0] ?? lease?.ipaddr ?? '', ip6: h.ip6addrs ?? [],
-      kind: kindOf(name), leaseExpires: lease?.expires, static: !lease, link,
+      mac, name: al?.name ?? name, hostname: name || undefined, alias: !!al, aliasSection: al?.section, ip: h.ipaddrs?.[0] ?? lease?.ipaddr ?? '', ip6: h.ip6addrs ?? [],
+      kind: kindOf(name) !== 'unknown' || !al ? kindOf(name) : kindOf(al.name), leaseExpires: lease?.expires, static: !lease, link,
     });
   }
   // Vendor from the MAC prefix: names, logos, and a category when the hostname told us nothing.
@@ -140,3 +147,16 @@ export const getHistory = (range: HistoryRange) => call<History>('lumen', 'histo
 
 export const getClientTraffic = (range: ClientRange) => call<ClientTraffic>('lumen', 'clients', { range });
 export const getClientSeries = (mac: string, range: ClientRange) => call<ClientSeries>('lumen', 'client', { mac, range });
+
+/** Give a device a custom name (empty = remove it). Names are stored per MAC in /etc/config/lumen. */
+export async function saveAlias(mac: string, name: string, section?: string): Promise<void> {
+  const clean = name.replace(/[\u0000-\u001f]/g, '').trim().slice(0, 40);
+  if (!clean) {
+    if (section) await call('uci', 'delete', { config: 'lumen', section });
+  } else if (section) {
+    await call('uci', 'set', { config: 'lumen', section, values: { name: clean } });
+  } else {
+    await call('uci', 'add', { config: 'lumen', type: 'client', values: { mac: mac.toUpperCase(), name: clean } });
+  }
+  await call('uci', 'commit', { config: 'lumen' });
+}

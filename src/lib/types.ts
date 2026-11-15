@@ -98,6 +98,9 @@ export interface NetworkMap {
 
 export interface Client {
   link?: ClientLink;
+  hostname?: string;    // name reported by DHCP/DNS (`name` is the custom name when one is set)
+  alias?: boolean;      // `name` is a custom name stored in /etc/config/lumen
+  aliasSection?: string;
   vendor?: string;      // from the MAC prefix
   brand?: string;       // logo key
   randomMac?: boolean;  // private/locally-administered address

@@ -20,6 +20,7 @@ uhttpd serves the files and rpcd is the API, enforcing its ACLs.
   address, maps addresses to MACs through the ARP/NDP tables and keeps hourly buckets. Limits: it counts
   traffic *routed through* the router (LAN <-> Internet or between subnets), not frames switched inside a
   bridge, and it under-counts when firewall **flow offloading** is enabled (the UI warns about it).
+  Custom device names live in the same file as `config client` sections (`mac`, `name`).
   `/etc/config/lumen`: `interval`, `persist`, `clients` (0 disables it), `count_local` (also count traffic to the router itself).
 - A tiny rpcd ucode plugin (`openwrt/rpcd/lumen`) adds what stock ubus lacks: bridge forwarding
   table (which port a client sits behind) and container-correct host stats from `/proc`.
@@ -70,6 +71,7 @@ scripts/         deploy.sh
 - [x] Traffic history: tiny ucode collector (procd) keeping 5-min buckets for 7 days and hourly for 90 days, in RAM by default (`/etc/config/lumen` can mirror it to a file via `persist`)
 - [x] Per-client traffic: nftables per-element counters (table `inet lumen`, forward hook, IPv4+IPv6) mapped to MACs, hourly buckets kept 30 days
 - [x] Vendor detection from the MAC prefix (IEEE MA-L/MA-M/MA-S, 360 KB gzipped, loaded on demand) with brand logos and better category icons; private/randomised MACs are labelled as such
+- [x] Custom device names tied to the MAC (stored on the router in `/etc/config/lumen`, shown everywhere)
 - [ ] Installable package (`apk`/`opkg`) with its own rpcd ACL
 - [ ] Package management and firmware upgrades
 - [ ] Internationalisation (English only for now)

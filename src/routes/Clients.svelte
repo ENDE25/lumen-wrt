@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import Icon from '../components/Icon.svelte';
   import Glyph from '../components/Glyph.svelte';
+  import ClientNameEditor from '../components/ClientNameEditor.svelte';
   import Drawer from '../components/Drawer.svelte';
   import SignalBars from '../components/SignalBars.svelte';
   import { getClientTraffic, getClients } from '../lib/api';
@@ -16,8 +17,10 @@
   let sel = $state<Client | null>(null);
   let sort = $state<{ k: 'name' | 'ip' | 'kind'; dir: 1 | -1 } | null>(null);
 
+  const reload = () => getClients().then((c) => { clients = c; loaded = true; if (sel) sel = c.find((x) => x.mac === sel!.mac) ?? sel; }).catch(() => (loaded = true));
+
   onMount(() => {
-    const go = () => getClients().then((c) => { clients = c; loaded = true; }).catch(() => (loaded = true));
+    const go = reload;
     const traffic = () => getClientTraffic('24h').then((x) => (ct = x)).catch(() => {});
     go(); traffic(); const t = setInterval(() => { go(); traffic(); }, 10000);
     return () => clearInterval(t);
@@ -85,6 +88,7 @@
 <Drawer open={!!sel} title={sel?.name || 'Cliente'} onclose={() => (sel = null)}>
   {#if sel}
     <div class="det-hero"><span class="ico big"><Glyph brand={sel.brand} icon={sel.kind} size={30} /></span><div><b>{sel.name || 'Unnamed'}</b><p class="muted">{KIND[sel.kind]}</p></div></div>
+    {#key sel.mac}<ClientNameEditor client={sel} onsaved={reload} />{/key}
     <div class="stat-row"><span>Vendor</span><b>{sel.vendor ?? (sel.randomMac ? 'Private address' : 'Unknown')}</b></div>
     {#if sel.randomMac}<p class="hint">This device uses a randomised MAC address (typical of recent phones), so the maker can't be identified.</p>{/if}
     <div class="stat-row"><span>IP address</span><b class="num">{sel.ip || '—'}</b></div>

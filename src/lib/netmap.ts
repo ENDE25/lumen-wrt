@@ -5,18 +5,25 @@ export type NodeKind = 'internet' | 'router' | 'port' | 'ssid' | 'client';
 
 export interface GNode {
   id: string; kind: NodeKind; x: number; y: number; w: number; h: number;
-  title: string; sub: string; icon: string; brand?: string; up: boolean;
+  title: string; sub: string; sub2?: string; icon: string; brand?: string; up: boolean;
   client?: Client; port?: NetDevice; wifi?: WifiIface; iface?: NetInterface; count?: number;
 }
-export interface GLink { id: string; from: string; to: string; wifi: boolean; up: boolean; label?: string }
+export interface GLink { id: string; from: string; to: string; wifi: boolean; up: boolean; curve: boolean; label?: string }
 export interface Graph { nodes: GNode[]; links: GLink[]; width: number; height: number }
 
 export const COL = { internet: 24, router: 330, attach: 600, client: 910 } as const;
-const W = { internet: 190, router: 230, attach: 220, client: 250 } as const;
-const ROW = 62, GAP = 22, CH = 50, AH = 58;
+const W = { internet: 140, router: 230, attach: 220, client: 250 } as const;
+const ROW = 74, GAP = 22, CH = 62, AH = 58;
 
 const VIRTUAL = /^(lo|ifb|veth|tap|tun|wg|bond|dummy|erspan|gre|ip6|sit|teql|bonding|phy|wlan)/;
 const speed = (s?: string) => { const n = parseInt(s ?? '0'); return n >= 1000 ? `${n / 1000} Gb/s` : n ? `${n} Mb/s` : ''; };
+
+/** Name, IP and MAC for a client. Without a name: IP and MAC. */
+function clientLines(c: Client): { title: string; sub: string; sub2?: string } {
+  const ip = c.ip || c.ip6[0] || '';
+  if (c.name) return { title: c.name, sub: ip || 'no IP', sub2: c.mac };
+  return ip ? { title: ip, sub: c.mac } : { title: c.mac, sub: '' };
+}
 
 export function buildGraph(p: {
   board: Board | null; interfaces: NetInterface[]; devices: Record<string, NetDevice>;
@@ -74,8 +81,8 @@ export function buildGraph(p: {
     nodes.push({ x: COL.attach, y: cy - AH / 2, w: W.attach, h: AH, kind: a.kind, id: a.id, title: '', sub: '', icon: '', up: true, ...a.node, count: a.clients.length } as GNode);
     a.clients.forEach((c, i) => {
       const id = `client:${c.mac}`;
-      nodes.push({ id, kind: 'client', x: COL.client, y: y + i * ROW + (ROW - CH) / 2, w: W.client, h: CH, title: c.name || c.ip || c.mac, sub: c.name ? c.ip : c.mac, icon: c.kind, brand: c.brand, up: true, client: c });
-      links.push({ id: `${a.id}>${id}`, from: a.id, to: id, wifi: a.kind === 'ssid', up: true });
+      nodes.push({ id, kind: 'client', x: COL.client, y: y + i * ROW + (ROW - CH) / 2, w: W.client, h: CH, ...clientLines(c), icon: c.kind, brand: c.brand, up: true, client: c });
+      links.push({ id: `${a.id}>${id}`, from: a.id, to: id, wifi: a.kind === 'ssid', up: true, curve: true });
     });
     rows.push({ cy });
     y += blockH + GAP;
@@ -88,11 +95,11 @@ export function buildGraph(p: {
     title: board?.hostname || 'Router', sub: board?.model || board?.release.description || '',
   });
   nodes.push({
-    id: 'internet', kind: 'internet', x: COL.internet, y: mid - 36, w: W.internet, h: 72, up: !!wan, icon: 'network',
+    id: 'internet', kind: 'internet', x: COL.internet + 10, y: mid - 26, w: W.internet, h: 100, up: !!wan, icon: 'globe',
     title: 'Internet', sub: wan?.['ipv4-address']?.[0]?.address ?? (wan ? wan.proto : 'Offline'), iface: wan,
   });
-  links.push({ id: 'internet>router', from: 'internet', to: 'router', wifi: false, up: !!wan, label: wan ? `${wan.interface} · ${wanDev}` : undefined });
-  for (const a of attaches) links.push({ id: `router>${a.id}`, from: 'router', to: a.id, wifi: a.kind === 'ssid', up: a.node.up ?? true });
+  links.push({ id: 'internet>router', from: 'internet', to: 'router', wifi: false, up: !!wan, curve: false, label: wan ? `${wan.interface} · ${wanDev}` : undefined });
+  for (const a of attaches) links.push({ id: `router>${a.id}`, from: 'router', to: a.id, wifi: a.kind === 'ssid', up: a.node.up ?? true, curve: false });
 
   return { nodes, links, width: COL.client + W.client + 24, height: height + 8 };
 }

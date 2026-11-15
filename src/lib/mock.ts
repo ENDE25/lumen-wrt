@@ -68,6 +68,10 @@ const WIRED: Record<string, string> = { raspberrypi: 'lan1', 'NAS-Synology': 'la
 
 // Tiny in-memory UCI so the DHCP/DNS page is fully usable in demo mode.
 const UCI: Record<string, Record<string, any>> = {
+  lumen: {
+    history: { '.name': 'history', '.type': 'history', interval: '300', clients: '1' },
+    cfg0n1: { '.name': 'cfg0n1', '.type': 'client', '.anonymous': true, mac: 'F0:18:98:0B:3C:02', name: "Dad's MacBook" },
+  },
   wireless: {
     radio0: { '.name': 'radio0', '.type': 'wifi-device', type: 'mac80211', band: '5g', channel: '36', htmode: 'HE80', country: 'ES', txpower: '23' },
     radio1: { '.name': 'radio1', '.type': 'wifi-device', type: 'mac80211', band: '2g', channel: 'auto', htmode: 'HE20', country: 'ES' },
@@ -247,6 +251,8 @@ export async function mockCall(obj: string, method: string, args: any = {}): Pro
       UCI[args.config] = Object.fromEntries(all);
       return {};
     }
+    case 'uci.commit':
+      return {};
     case 'uci.apply': case 'uci.confirm': case 'uci.rollback': case 'uci.revert':
       return {};
   }
