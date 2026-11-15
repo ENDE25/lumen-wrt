@@ -46,8 +46,8 @@
 
   const KIND: Record<string, [string, string]> = {
     phone: ['Phones', '#28a5ee'], laptop: ['Laptops', '#006fff'], desktop: ['Desktops', '#0a3fa8'],
-    tv: ['TV', '#f09a14'], printer: ['Printers', '#17a860'], iot: ['IoT', '#a24fd8'],
-    server: ['Servers', '#e5484d'], router: ['Network', '#5d6675'], console: ['Consoles', '#0f9fa8'], camera: ['Cameras', '#c2410c'], speaker: ['Speakers', '#7c6bd6'], unknown: ['Other', '#9aa3b2'],
+    tv: ['TV', '#f09a14'], printer: ['Printers', '#17a860'], iot: ['IoT', '#84cc16'],
+    server: ['Servers', '#e5484d'], router: ['Network', '#5d6675'], console: ['Consoles', '#0f9fa8'], camera: ['Cameras', '#c2410c'], speaker: ['Speakers', '#92643c'], unknown: ['Other', '#9aa3b2'],
   };
   const segs = $derived.by(() => {
     const m = new Map<string, number>();
