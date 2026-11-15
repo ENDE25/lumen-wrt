@@ -56,6 +56,25 @@ const LOG = [
   'user.notice firewall: Reloading firewall due to ifup of wan (eth0)',
 ];
 
+// name -> [attachment, signal dBm]; anything not listed here is wired on lan1/lan2.
+const WIFI: Record<string, [string, number]> = {
+  'iPhone-de-Marta': ['phy0-ap0', -52], 'MacBook-Pro': ['phy0-ap0', -47], 'Portatil-Dell': ['phy0-ap0', -63],
+  'Apple-TV': ['phy0-ap0', -58], 'Galaxy-S23': ['phy1-ap0', -61], 'Chromecast': ['phy1-ap0', -66],
+  'Shelly-Salon': ['phy1-ap0', -72], '': ['phy1-ap0', -78],
+};
+const WIRED: Record<string, string> = { raspberrypi: 'lan1', 'NAS-Synology': 'lan1', 'Impresora-HP': 'lan2', 'DESKTOP-GAMING': 'lan2' };
+
+// Tiny in-memory UCI so the DHCP/DNS page is fully usable in demo mode.
+const UCI: Record<string, Record<string, any>> = {
+  dhcp: {
+    cfg01411c: { '.name': 'cfg01411c', '.type': 'dnsmasq', '.anonymous': true, domain: 'lan', local: '/lan/', cachesize: '1000', rebind_protection: '1', expandhosts: '1', server: ['1.1.1.1', '9.9.9.9'] },
+    lan: { '.name': 'lan', '.type': 'dhcp', interface: 'lan', start: '100', limit: '150', leasetime: '12h', dhcpv4: 'server' },
+    wan: { '.name': 'wan', '.type': 'dhcp', interface: 'wan', ignore: '1' },
+    cfg0a1b2c: { '.name': 'cfg0a1b2c', '.type': 'host', '.anonymous': true, name: 'NAS-Synology', mac: '00:11:32:AB:CD:05', ip: '192.168.1.5' },
+    cfg0d3e4f: { '.name': 'cfg0d3e4f', '.type': 'host', '.anonymous': true, name: 'raspberrypi', mac: 'DC:A6:32:4F:19:03', ip: '192.168.1.10' },
+  },
+};
+
 export async function mockCall(obj: string, method: string, args: any = {}): Promise<any> {
   await new Promise((r) => setTimeout(r, 40 + Math.random() * 60));
   tick();
@@ -100,11 +119,42 @@ export async function mockCall(obj: string, method: string, args: any = {}): Pro
       return { dhcp_leases: HOSTS.filter((h) => !['192.168.1.5', '192.168.1.10'].includes(h[2])).map(([mac, name, ip], i) => ({ expires: 40000 - i * 3000, macaddr: mac.toLowerCase(), ipaddr: ip, hostname: name || '*' })), dhcp6_leases: [] };
     case 'luci-rpc.getWirelessDevices':
       return { radio0: { up: true, interfaces: [{ ifname: 'phy0-ap0', config: { ssid: 'Lumen-5G', mode: 'ap' } }] }, radio1: { up: true, interfaces: [{ ifname: 'phy1-ap0', config: { ssid: 'Lumen', mode: 'ap' } }] } };
+    case 'lumen.topology':
+      return {
+        bridges: { 'br-lan': ['lan1', 'lan2', 'phy0-ap0', 'phy1-ap0'] },
+        fdb: { 'br-lan': HOSTS.map(([mac, name]) => ({ mac: mac.toLowerCase(), port: WIFI[name]?.[0] ?? WIRED[name] ?? 'lan1', local: false })) },
+        neigh: HOSTS.map(([mac, , ip]) => ({ ip, mac: mac.toLowerCase(), dev: 'br-lan' })),
+      };
+    case 'iwinfo.info':
+      return args.device === 'phy0-ap0'
+        ? { ssid: 'Lumen-5G', mode: 'Master', channel: 36, frequency: 5180, signal: 0 }
+        : { ssid: 'Lumen', mode: 'Master', channel: 6, frequency: 2437, signal: 0 };
+    case 'iwinfo.assoclist':
+      return { results: HOSTS.filter(([, n]) => WIFI[n]?.[0] === args.device).map(([mac, n]) => ({
+        mac, signal: WIFI[n][1], noise: -95, rx: { rate: args.device === 'phy0-ap0' ? 866000 : 144000 }, tx: { rate: args.device === 'phy0-ap0' ? 780000 : 130000 },
+      })) };
     case 'log.read':
       return { log: LOG.map((l, i) => ({ msg: l, id: i, priority: 6, source: 3, time: Date.now() - (LOG.length - i) * 60000 })) };
     case 'system.reboot':
+      return {};
     case 'uci.get':
-      return { values: {} };
+      return { values: JSON.parse(JSON.stringify(UCI[args.config] ?? {})) };
+    case 'uci.set': {
+      const sec = UCI[args.config]?.[args.section];
+      if (!sec) throw new Error('section not found');
+      Object.assign(sec, args.values);
+      return {};
+    }
+    case 'uci.add': {
+      const name = 'cfg' + Math.random().toString(16).slice(2, 8);
+      (UCI[args.config] ??= {})[name] = { '.name': name, '.type': args.type, '.anonymous': true, ...args.values };
+      return { section: name };
+    }
+    case 'uci.delete':
+      if (args.option) delete UCI[args.config]?.[args.section]?.[args.option]; else delete UCI[args.config]?.[args.section];
+      return {};
+    case 'uci.apply': case 'uci.confirm': case 'uci.rollback': case 'uci.revert':
+      return {};
   }
   if (obj === 'file' && method === 'exec') return { code: 0, stdout: '' };
   console.warn('[mock] unhandled', k, args);

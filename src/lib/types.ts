@@ -69,7 +69,33 @@ export interface Lease {
   clientid?: string;
 }
 
+export interface ClientLink {
+  type: 'wifi' | 'wired' | 'unknown';
+  dev: string;        // port, wifi interface or bridge the client was seen on
+  ssid?: string;
+  band?: string;
+  signal?: number;    // dBm
+  rx?: number;        // kbit/s
+  tx?: number;
+}
+
+export interface WifiIface {
+  ifname: string;
+  ssid: string;
+  mode: string;
+  channel?: number;
+  band: string;
+  clients: { mac: string; signal?: number; rx?: number; tx?: number }[];
+}
+
+export interface NetworkMap {
+  clients: Client[];
+  wifi: WifiIface[];
+  bridges: Record<string, string[]>;
+}
+
 export interface Client {
+  link?: ClientLink;
   mac: string;
   name: string;
   ip: string;

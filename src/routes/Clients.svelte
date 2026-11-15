@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import Icon from '../components/Icon.svelte';
   import Drawer from '../components/Drawer.svelte';
+  import SignalBars from '../components/SignalBars.svelte';
   import { getClients } from '../lib/api';
   import { duration } from '../lib/format';
   import type { Client } from '../lib/types';
@@ -51,6 +52,7 @@
       <thead><tr>
         <th><button onclick={() => toggle('name')}>Nombre{arrow('name')}</button></th>
         <th><button onclick={() => toggle('ip')}>IP{arrow('ip')}</button></th>
+        <th>Conexión</th>
         <th>MAC</th>
         <th><button onclick={() => toggle('kind')}>Tipo{arrow('kind')}</button></th>
         <th>Concesión DHCP</th>
@@ -61,12 +63,13 @@
             onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && (sel = c)}>
             <td><span class="who"><span class="ico"><Icon name={c.kind} size={18} /></span>{c.name || 'Sin nombre'}</span></td>
             <td class="num">{c.ip || '—'}</td>
+            <td>{#if c.link?.type === 'wifi'}<span class="conn"><Icon name="wifi" size={15} />{c.link.ssid}<SignalBars dbm={c.link.signal} /></span>{:else if c.link}<span class="conn"><Icon name="devices" size={15} />{c.link.dev}</span>{:else}<span class="faint">—</span>{/if}</td>
             <td class="mono muted">{c.mac}</td>
             <td>{KIND[c.kind]}</td>
             <td class="muted">{lease(c)}</td>
           </tr>
         {:else}
-          <tr><td colspan="5" class="empty muted">{loaded ? 'No hay clientes que coincidan.' : 'Cargando…'}</td></tr>
+          <tr><td colspan="6" class="empty muted">{loaded ? 'No hay clientes que coincidan.' : 'Cargando…'}</td></tr>
         {/each}
       </tbody>
     </table>
@@ -77,6 +80,8 @@
   {#if sel}
     <div class="det-hero"><span class="ico big"><Icon name={sel.kind} size={30} /></span><div><b>{sel.name || 'Sin nombre'}</b><p class="muted">{KIND[sel.kind]}</p></div></div>
     <div class="stat-row"><span>Dirección IP</span><b class="num">{sel.ip || '—'}</b></div>
+    <div class="stat-row"><span>Conexión</span><b>{sel.link ? (sel.link.type === 'wifi' ? `Wi-Fi · ${sel.link.ssid} (${sel.link.band})` : `Cable · ${sel.link.dev}`) : 'Desconocida'}</b></div>
+    {#if sel.link?.signal !== undefined}<div class="stat-row"><span>Señal</span><b class="num">{sel.link.signal} dBm</b></div>{/if}
     <div class="stat-row"><span>MAC</span><b class="mono">{sel.mac}</b></div>
     <div class="stat-row"><span>Concesión DHCP</span><b>{lease(sel)}</b></div>
     {#each sel.ip6 as a}<div class="stat-row"><span>IPv6</span><b class="mono">{a}</b></div>{/each}
@@ -94,4 +99,5 @@
   .ico.big { width: 56px; height: 56px; border-radius: 14px; background: var(--accent-soft); color: var(--accent); }
   .det-hero { display: flex; gap: 14px; align-items: center; margin-bottom: 14px; }
   .empty { text-align: center; padding: 40px; }
+  .conn { display: inline-flex; align-items: center; gap: 7px; color: var(--text-2); }
 </style>

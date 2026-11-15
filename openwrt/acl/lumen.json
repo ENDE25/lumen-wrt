@@ -1,0 +1,11 @@
+{
+	"lumen": {
+		"description": "Lumen panel: topology data and safe-apply of UCI changes",
+		"read": {
+			"ubus": { "lumen": [ "topology" ], "uci": [ "configs" ] }
+		},
+		"write": {
+			"ubus": { "uci": [ "revert", "rollback", "changes" ] }
+		}
+	}
+}

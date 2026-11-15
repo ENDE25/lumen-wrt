@@ -1,0 +1,70 @@
+// Lumen rpcd plugin (ucode). Installed to /usr/share/rpcd/ucode/lumen
+// Gathers what the stock ubus objects do not expose: which bridge port each client sits behind.
+// NOTE: never call rpcd's own ubus objects (iwinfo, file, ...) from here: rpcd is single
+// threaded and would deadlock on itself. Wifi data is fetched by the frontend instead.
+'use strict';
+
+import { readfile, lsdir } from 'fs';
+
+function mac_from(s, o) {
+	return sprintf('%02x:%02x:%02x:%02x:%02x:%02x',
+		ord(s, o), ord(s, o + 1), ord(s, o + 2), ord(s, o + 3), ord(s, o + 4), ord(s, o + 5));
+}
+
+function trim(s) {
+	return replace(s ?? '', /[\s\n]+$/, '');
+}
+
+// IPv4 neighbours straight from the kernel: ip, mac, device.
+function read_arp() {
+	let out = [], txt = readfile('/proc/net/arp');
+	if (!txt) return out;
+	let first = true;
+	for (let line in split(txt, '\n')) {
+		if (first) { first = false; continue; }
+		let f = split(trim(line), /\s+/);
+		if (length(f) < 6) continue;
+		// flags 0x2 = complete entry
+		if (f[2] == '0x0') continue;
+		push(out, { ip: f[0], mac: f[3], dev: f[5] });
+	}
+	return out;
+}
+
+function read_bridges() {
+	let out = {};
+	for (let name in lsdir('/sys/class/net') ?? []) {
+		let members = lsdir(`/sys/class/net/${name}/brif`);
+		if (members) out[name] = sort(members);
+	}
+	return out;
+}
+
+// Parse /sys/class/net/<br>/brforward (array of 16-byte struct fdb_entry).
+function read_fdb(br) {
+	let raw = readfile(`/sys/class/net/${br}/brforward`);
+	if (!raw) return [];
+	let ports = {};
+	for (let dev in lsdir(`/sys/class/net/${br}/brif`) ?? []) {
+		let n = trim(readfile(`/sys/class/net/${br}/brif/${dev}/port_no`));
+		if (n != '') ports[hex(n)] = dev;
+	}
+	let out = [];
+	for (let o = 0; o + 16 <= length(raw); o += 16) {
+		let port = ord(raw, o + 6) | (ord(raw, o + 12) << 8);
+		push(out, { mac: mac_from(raw, o), port: ports[port], local: ord(raw, o + 7) != 0 });
+	}
+	return out;
+}
+
+const methods = {
+	topology: {
+		call: function(request) {
+			let bridges = read_bridges(), fdb = {};
+			for (let br in keys(bridges)) fdb[br] = read_fdb(br);
+			return { bridges, fdb, neigh: read_arp() };
+		}
+	},
+};
+
+return { lumen: methods };

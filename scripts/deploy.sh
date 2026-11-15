@@ -23,4 +23,20 @@ echo "→ uploading to $USER_@$HOST:$DEST"
 tar -C dist -cf - . | "${SSH[@]}" "$USER_@$HOST" \
   "rm -rf ${DEST}.new && mkdir -p ${DEST}.new && tar -xf - -C ${DEST}.new && rm -rf ${DEST}.old && { [ ! -d ${DEST} ] || mv ${DEST} ${DEST}.old; } && mv ${DEST}.new ${DEST} && rm -rf ${DEST}.old"
 
+# rpcd plugin + ACL (topology data, safe-apply). Restart rpcd only when they actually changed,
+# because a restart invalidates every login session.
+changed=0
+install_remote() {
+  local src="$1" dst="$2" l r
+  l=$(md5sum < "$src" | cut -d' ' -f1)
+  r=$("${SSH[@]}" "$USER_@$HOST" "md5sum < $dst 2>/dev/null | cut -d' ' -f1" || true)
+  if [[ "$l" != "$r" ]]; then
+    "${SSH[@]}" "$USER_@$HOST" "cat > $dst.tmp && mv $dst.tmp $dst" < "$src"
+    echo "→ updated $dst"; changed=1
+  fi
+}
+install_remote openwrt/rpcd/lumen     /usr/share/rpcd/ucode/lumen
+install_remote openwrt/acl/lumen.json /usr/share/rpcd/acl.d/lumen.json
+if [[ $changed == 1 ]]; then "${SSH[@]}" "$USER_@$HOST" "/etc/init.d/rpcd restart" && echo "→ rpcd restarted (log in again)"; fi
+
 echo "✓ Lumen deployed: http://$HOST/lumen/"

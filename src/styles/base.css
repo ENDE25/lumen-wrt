@@ -1,5 +1,7 @@
 *, *::before, *::after { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; }
+/* Default density: slightly smaller than 100% so more fits on screen. */
+html { zoom: 0.88; }
 body {
   background: var(--bg); color: var(--text); font: 14px/1.45 var(--font);
   -webkit-font-smoothing: antialiased;

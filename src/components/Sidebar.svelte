@@ -6,8 +6,10 @@
 
   const items = [
     { id: 'dashboard', icon: 'dashboard', label: 'Panel' },
-    { id: 'network', icon: 'network', label: 'Red' },
+    { id: 'topology', icon: 'network', label: 'Topología' },
+    { id: 'network', icon: 'devices', label: 'Red' },
     { id: 'clients', icon: 'clients', label: 'Clientes' },
+    { id: 'dhcp', icon: 'dns', label: 'DHCP y DNS' },
     { id: 'logs', icon: 'logs', label: 'Registros' },
     { id: 'system', icon: 'settings', label: 'Sistema' },
   ];
