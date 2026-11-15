@@ -4,7 +4,7 @@
 // threaded and would deadlock on itself. Wifi data is fetched by the frontend instead.
 'use strict';
 
-import { readfile, lsdir, stat, popen } from 'fs';
+import { readfile, lsdir, stat, popen, access } from 'fs';
 import { cursor } from 'uci';
 
 const HISTORY_FILE = '/tmp/lumen/history.json';
@@ -277,7 +277,42 @@ function pkg_run(action, pkgsStr) {
 	return { started: true };
 }
 
+// ---- Lumen's own lifecycle (installed by openwrt/bin/lumen-manage.sh): version, update, uninstall.
+// update/uninstall run as a detached job so they survive the rpcd restart they cause.
+const SELF_DIR = '/tmp/lumen-self';
+const MANAGER = '/usr/libexec/lumen/manage.sh';
+
+function lumen_version() {
+	let raw = readfile('/usr/share/lumen/version.json');
+	let d = raw ? json(raw) : null;
+	let url = cursor().get('lumen', 'update', 'url');
+	return { managed: !!d?.version && access(MANAGER), version: d?.version, installed: d?.installed, base: (url && url != '') ? url : d?.base };
+}
+
+function self_status() {
+	let rd = (f) => trim(readfile(`${SELF_DIR}/${f}`) ?? '');
+	let state = rd('state');
+	if (state == '') return { state: 'idle' };
+	let log = readfile(`${SELF_DIR}/log`) ?? '';
+	if (length(log) > 20000) log = '…' + substr(log, length(log) - 20000);
+	return { state, cmd: rd('cmd'), code: rd('code') == '' ? null : int(rd('code')), started: int(rd('started') || 0), ended: int(rd('ended') || 0), log };
+}
+
+function self_run(action, purge) {
+	if (!(action in ['update', 'uninstall'])) return { error: 'unsupported action' };
+	if (!access(MANAGER)) return { error: 'Lumen was not installed with the installer, so it cannot manage itself' };
+	let st = self_status();
+	if (st.state == 'running' && time() - st.started < 1800) return { error: 'another operation is still running' };
+	let extra = (action == 'uninstall' && purge == '1') ? ' --purge' : '';
+	system(`setsid sh ${MANAGER} job ${action}${extra} </dev/null >/dev/null 2>&1 &`);
+	return { started: true };
+}
+
 const methods = {
+	version: { call: function(request) { return lumen_version(); } },
+	self_status: { call: function(request) { return self_status(); } },
+	self_run: { args: { action: 'action', purge: 'purge' }, call: function(request) { return self_run(request.args?.action, request.args?.purge); } },
+
 	pkg_installed: { call: function(request) { return { packages: pkg_installed() }; } },
 	pkg_upgradable: { call: function(request) { return { packages: pkg_upgradable() }; } },
 	pkg_search: { args: { q: 'q' }, call: function(request) { return pkg_search(request.args?.q); } },

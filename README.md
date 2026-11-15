@@ -3,7 +3,7 @@
 A modern admin panel for **OpenWrt**, built as an alternative to LuCI. Its look and feel is inspired
 by professional network consoles: a compact icon rail, cards, live charts and slide-over detail panels.
 
-> Status: **v0.8 (in development)**. Dashboards plus safe configuration of DHCP/DNS, the firewall and Wi-Fi.
+> Status: **v0.8.0**. Dashboards plus safe configuration of DHCP/DNS, the firewall and Wi-Fi.
 
 ## How it works
 
@@ -46,15 +46,48 @@ LUMEN_TARGET=http://192.168.1.1 npm run dev   # against a real router (proxies /
 npm run check                                 # svelte-check + TypeScript
 ```
 
-## Deploying to a router
+## Install, update, uninstall
 
-```bash
-LUMEN_HOST=192.168.1.1 npm run deploy         # SSH keys, or LUMEN_PASS=... with sshpass
-# → http://192.168.1.1/lumen/
+On the router (SSH), one command:
+
+```sh
+wget -qO- https://raw.githubusercontent.com/ENDE25/lumen-wrt/main/release/install.sh | sh
 ```
 
-The script builds, uploads to a staging directory and swaps it in atomically. It also installs the rpcd
-plugin and ACL, restarting rpcd only if they changed. To uninstall: `rm -rf /www/lumen` on the router.
+It downloads the latest release, verifies its **SHA-256** and its **Ed25519 signature** (with the `usign` that ships
+with OpenWrt), installs under `/www/lumen` plus a few router-side components, enables the collector, and prints the
+address. It needs working DNS on the router. Nothing outside Lumen's own paths is ever written.
+
+- **Update**: *System → Lumen → Update* in the panel (a badge in the top bar tells you when a new version is out),
+  or `lumen update`. The previous version is backed up first and restored automatically if the new one fails its
+  health check. Updates are only accepted if signed with the key pinned at install time.
+- **Uninstall**: *System → Lumen → Uninstall…*, or `lumen uninstall` (add `--purge` to also delete your settings:
+  device names/types, collector options). LuCI and the rest of OpenWrt are never touched.
+- `lumen status` and `lumen check` show what is installed and whether something newer exists.
+- Point a router at another release source with `uci set lumen.update.url=https://…/release`.
+
+## Publishing a release (maintainers)
+
+Releases live in this repository under `release/`, so publishing is a commit:
+
+```sh
+node scripts/release.mjs --init-key     # once: creates ~/.config/lumen/release-key.pem (BACK IT UP) and openwrt/release-key.pub
+npm version patch --no-git-tag-version  # or edit "version" in package.json
+npm run release                         # builds, packages, signs -> release/
+git add -A && git commit -m "release x.y.z" && git push
+```
+
+Every router sees the new `latest.json` and offers the update. The repository must be **public** (or the source
+must be reachable without credentials) for routers to download from it. The three newest versions are kept.
+
+## Developing against a router
+
+```bash
+LUMEN_HOST=192.168.1.1 npm run deploy         # copies the build + router-side pieces directly (SSH keys, or LUMEN_PASS with sshpass)
+```
+
+This is a development shortcut: a copy deployed this way is not tracked by the installer, so the panel shows it as
+"deployed from source" and offers no update/uninstall.
 
 ## Layout
 
@@ -63,7 +96,8 @@ src/lib/         ubus client, domain API, uci + safe-apply, mock, stores (live, 
 src/components/  Sidebar, Topbar, AreaChart, LineChart, Donut, Drawer, Meter, Toggle, ApplyBar
 src/routes/      Dashboard, NetworkMap, Network, Clients, Dhcp, Logs, System, Login
 src/styles/      design tokens (light/dark) and base styles
-openwrt/         rpcd plugin, ACL, history collector + init script + default config
+openwrt/         rpcd plugin, ACL, collector, init script, default config, lumen-manage.sh (installer), release-key.pub
+release/         published releases: install.sh, latest.json, lumen-x.y.z.tar.gz (+ .sig)
 scripts/         deploy.sh
 ```
 
@@ -77,7 +111,8 @@ scripts/         deploy.sh
 - [x] Per-client traffic: nftables per-element counters (table `inet lumen`, forward hook, IPv4+IPv6) mapped to MACs, hourly buckets kept 30 days
 - [x] Vendor detection from the MAC prefix (IEEE MA-L/MA-M/MA-S, 360 KB gzipped, loaded on demand) with brand logos and better category icons; private/randomised MACs are labelled as such
 - [x] Custom device names and device types tied to the MAC (stored on the router in `/etc/config/lumen`, shown everywhere)
-- [ ] Installable package (`apk`/`opkg`) with its own rpcd ACL
+- [x] One-line installer with signed releases, self-update from the panel and clean uninstall
+- [ ] Optional native `apk` package / feed
 - [x] Package management (apk): list/search/install/remove/upgrade with a dry-run preview and live log, detached jobs, core packages protected; firmware release check against downloads.openwrt.org
 - [ ] Flashing firmware from the panel (sysupgrade)
 - [ ] Internationalisation (English only for now)

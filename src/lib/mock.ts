@@ -123,6 +123,15 @@ let mUpg: { name: string; from?: string; to: string }[] = [
   { name: 'wpad-basic-mbedtls', from: '2025.08.26-r1', to: '2025.11.04-r1' }, { name: 'ethtool', from: '6.14-r1', to: '6.15-r1' },
 ];
 let mJob: any = { state: 'idle' };
+let mSelf: any = { state: 'idle' };
+function mockSelfJob(action: string) {
+  const steps = action === 'update'
+    ? ['Looking for the latest release ...', 'Downloading Lumen 0.9.0 ...', 'Checksum and signature verified.', 'Installing Lumen 0.9.0 ...', 'Lumen 0.9.0 is installed.']
+    : ['Removing Lumen ...', 'Lumen was removed. Your settings were kept in /etc/config/lumen (use --purge to delete them).'];
+  mSelf = { state: 'running', cmd: `lumen ${action}`, code: null, started: Math.floor(Date.now() / 1000), log: '' };
+  steps.forEach((l, i) => setTimeout(() => { mSelf.log += l + '\n'; }, 800 * (i + 1)));
+  setTimeout(() => { mSelf = { ...mSelf, state: 'done', code: 0, ended: Math.floor(Date.now() / 1000) }; }, 800 * (steps.length + 1));
+}
 
 function mockPlan(action: string, pkgs: string[]): string {
   if (action === 'add') return pkgs.flatMap((p, i) => [`(${i + 1}/${pkgs.length + 1}) Installing ${p} (${CATALOG.find((c) => c.name === p)?.version ?? '1.0-r1'})`]).concat(['(…) Installing required libraries', 'OK: 12.4 MiB in 139 packages']).join('\n');
@@ -221,6 +230,9 @@ export async function mockCall(obj: string, method: string, args: any = {}): Pro
       mockRunJob(args.action, String(args.pkgs ?? '').split(/\s+/).filter(Boolean)); return { started: true };
     }
     case 'lumen.pkg_status': return mJob;
+    case 'lumen.version': return { managed: true, version: __LUMEN_VERSION__, installed: Math.floor(Date.now() / 1000) - 86400 * 3, base: 'https://raw.githubusercontent.com/ENDE25/lumen-wrt/main/release' };
+    case 'lumen.self_status': return mSelf;
+    case 'lumen.self_run': if (mSelf.state === 'running') return { error: 'another operation is still running' }; mockSelfJob(args.action); return { started: true };
     case 'lumen.clients': {
       const mult = ({ '24h': 1, '7d': 6.2, '30d': 24 } as Record<string, number>)[args.range] ?? 1;
       const base: Record<string, number> = { 'A4:83:E7:11:22:01': 3.2, 'F0:18:98:0B:3C:02': 7.5, 'DC:A6:32:4F:19:03': 1.1, '3C:5A:B4:77:AA:04': 5.1, '00:11:32:AB:CD:05': 11.8, 'EC:B1:D7:90:12:06': 0.05, 'C8:2B:96:33:44:07': 0.02, '00:00:F0:AA:BB:08': 2.4, '9C:B6:D0:12:34:09': 14.6, '50:DE:06:55:66:0A': 6.3, '00:06:5B:99:88:0C': 1.9, 'F6:3A:11:55:77:0D': 2.8 };

@@ -19,12 +19,24 @@
   import { router } from './lib/router.svelte';
   import { hasSession, onAuthLost } from './lib/ubus';
   import { getBoard } from './lib/api';
+  import { updates } from './lib/updates.svelte';
+  import { changes } from './lib/changes.svelte';
 
   let authed = $state(hasSession());
   let host = $state('');
 
   onMount(() => onAuthLost(() => (authed = false)));
   $effect(() => { if (authed) getBoard().then((b) => (host = b.hostname)).catch(() => {}); });
+
+  // After an update rpcd restarts and the session ends; on the next sign-in say how it went.
+  $effect(() => {
+    if (!authed) return;
+    const pending = (() => { try { return JSON.parse(sessionStorage.getItem('lumen.pending') ?? 'null'); } catch { return null; } })();
+    try { sessionStorage.removeItem('lumen.pending'); } catch { /* ignore */ }
+    updates.refresh().then(() => {
+      if (pending?.action === 'update' && pending.to) changes.note = updates.current === pending.to ? `Lumen updated to v${pending.to}` : 'The update did not complete. See System → Lumen.';
+    });
+  });
 
   const pages = { dashboard: Dashboard, clients: Clients, network: Network, map: NetworkMap, dhcp: Dhcp, firewall: Firewall, wifi: Wifi, traffic: Traffic, software: Software, services: Services, logs: Logs, system: System } as const;
   const Page = $derived(pages[router.path as keyof typeof pages] ?? Dashboard);

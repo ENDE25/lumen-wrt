@@ -1,0 +1,8 @@
+{
+  "version": "0.8.0",
+  "released": "2026-11-15T19:57:09.828Z",
+  "tarball": "lumen-0.8.0.tar.gz",
+  "sha256": "f9d6f07abdada20853056f4bfafd5e54387fc0511e550da97fbea3f19298ad94",
+  "size": 512103,
+  "notes": "First managed release: dashboard, network map, traffic history, per-client traffic, Wi-Fi, firewall, DHCP/DNS, software manager, installer and self-update."
+}

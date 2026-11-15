@@ -8,3 +8,7 @@ config history 'history'
 	option clients '1'
 	# also count traffic between clients and the router itself (DNS, web UI...); normally off
 	option count_local '0'
+
+config update 'update'
+	# where `lumen update` and the panel look for new releases (empty = the official repository)
+	option url ''
