@@ -9,12 +9,12 @@
 <svelte:window onkeydown={key} />
 
 {#if open}
-  <button class="scrim" aria-label="Cerrar panel" onclick={onclose}></button>
+  <button class="scrim" aria-label="Close panel" onclick={onclose}></button>
 {/if}
 <aside class:open aria-hidden={!open} inert={!open}>
   <header>
     <h2>{title}</h2>
-    <button class="x" onclick={onclose} aria-label="Cerrar"><Icon name="x" size={18} /></button>
+    <button class="x" onclick={onclose} aria-label="Close"><Icon name="x" size={18} /></button>
   </header>
   <div class="body">{@render children()}</div>
 </aside>

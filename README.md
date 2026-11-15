@@ -1,61 +1,71 @@
 # Lumen
 
-Panel de administración moderno para **OpenWrt**, pensado como alternativa a LuCI.
-Estética y experiencia de uso inspiradas en consolas de red profesionales: barra lateral
-compacta, tarjetas, gráficos en vivo y paneles laterales de detalle.
+A modern admin panel for **OpenWrt**, built as an alternative to LuCI. Its look and feel is inspired
+by professional network consoles: a compact icon rail, cards, live charts and slide-over detail panels.
 
-> Estado: **v0.1 (MVP en desarrollo)**. Solo lectura por ahora (panel, red, clientes, registros, sistema).
+> Status: **v0.2 (in development)**. Read-only dashboards plus safe configuration of DHCP/DNS.
 
-## Cómo funciona
+## How it works
 
-Lumen es una SPA estática (Svelte 5 + Vite + TypeScript, sin dependencias en runtime) que habla
-directamente con el router por **ubus JSON-RPC** (`/ubus`, el mismo canal que usa LuCI).
-No hay backend propio: uhttpd sirve los ficheros y rpcd hace de API con sus ACL.
+Lumen is a static SPA (Svelte 5 + Vite + TypeScript, no runtime dependencies) that talks directly to the
+router over **ubus JSON-RPC** (`/ubus`, the same channel LuCI uses). There is no backend of its own:
+uhttpd serves the files and rpcd is the API, enforcing its ACLs.
 
-- Se instala en `/www/lumen/` y **convive con LuCI**, que sigue funcionando como respaldo.
-- Bundle ~32 KB gzip de JS: cabe en routers con poca flash.
-- Una sola petición batch cada 2 s alimenta todas las páginas (`src/lib/live.svelte.ts`).
+- Installs into `/www/lumen/` and **coexists with LuCI**, which keeps working as a fallback.
+- ~45 KB of gzipped JS: fits routers with little flash.
+- One batched request every 2 s feeds every page (`src/lib/live.svelte.ts`).
+- A tiny rpcd ucode plugin (`openwrt/rpcd/lumen`) adds what stock ubus lacks: bridge forwarding
+  table (which port a client sits behind) and container-correct host stats from `/proc`.
+  It must never call rpcd's own objects (rpcd is single-threaded and would deadlock).
+- Config changes go through `uci apply` with a **rollback timer**: they are confirmed automatically
+  for safe areas (DHCP/DNS) and manually for anything that could lock you out.
 
-## Desarrollo
+## Pages
+
+Dashboard · Network Map · Network · Clients · DHCP & DNS · Logs · System
+
+## Development
 
 ```bash
 npm install
-npm run dev:mock                          # router simulado, no necesita hardware
-LUMEN_TARGET=http://192.168.1.1 npm run dev   # contra un router real (proxy de /ubus)
-npm run check                             # svelte-check + TypeScript
+npm run dev:mock                              # simulated router, no hardware needed
+LUMEN_TARGET=http://192.168.1.1 npm run dev   # against a real router (proxies /ubus)
+npm run check                                 # svelte-check + TypeScript
 ```
 
-## Despliegue en un router
+## Deploying to a router
 
 ```bash
-LUMEN_HOST=192.168.1.1 npm run deploy     # claves SSH; o LUMEN_PASS=... con sshpass
+LUMEN_HOST=192.168.1.1 npm run deploy         # SSH keys, or LUMEN_PASS=... with sshpass
 # → http://192.168.1.1/lumen/
 ```
 
-El script compila, sube a un directorio temporal y lo intercambia de forma atómica.
-Para quitar Lumen: `rm -rf /www/lumen` en el router.
+The script builds, uploads to a staging directory and swaps it in atomically. It also installs the rpcd
+plugin and ACL, restarting rpcd only if they changed. To uninstall: `rm -rf /www/lumen` on the router.
 
-## Estructura
+## Layout
 
 ```
-src/lib/        cliente ubus, API de dominio, mock, stores (live, router, theme)
-src/components/ Sidebar, Topbar, AreaChart, Donut, Drawer, Meter, Icon
-src/routes/     Dashboard, Clients, Network, Logs, System, Login
-src/styles/     tokens (claro/oscuro) y estilos base
-scripts/        deploy.sh
+src/lib/         ubus client, domain API, uci + safe-apply, mock, stores (live, router, theme)
+src/components/  Sidebar, Topbar, AreaChart, LineChart, Donut, Drawer, Meter, Toggle, ApplyBar
+src/routes/      Dashboard, NetworkMap, Network, Clients, Dhcp, Logs, System, Login
+src/styles/      design tokens (light/dark) and base styles
+openwrt/         rpcd plugin + ACL installed on the router
+scripts/         deploy.sh
 ```
 
-## Hoja de ruta
+## Roadmap
 
-- [ ] Escritura de configuración vía `uci` con **aplicar con confirmación y rollback automático**
-- [ ] Wi-Fi (radios, SSID, clientes asociados vía `iwinfo`/`hostapd`)
-- [ ] DHCP/DNS, reservas estáticas, firewall y reenvío de puertos
-- [ ] Histórico de tráfico (daemon ligero con series temporales) y tráfico por cliente
-- [ ] Paquete instalable (`apk`/`opkg`) con ACL de rpcd propia
-- [ ] Gestión de paquetes y actualizaciones de firmware
-- [ ] Internacionalización (ahora solo español)
+- [x] Safe UCI apply with confirm / automatic rollback
+- [x] DHCP/DNS and static reservations
+- [ ] Firewall: port forwards and rules
+- [ ] Wi-Fi (radios, SSIDs, associated clients)
+- [ ] Traffic history (lightweight time-series daemon) and per-client traffic
+- [ ] Installable package (`apk`/`opkg`) with its own rpcd ACL
+- [ ] Package management and firmware upgrades
+- [ ] Internationalisation (English only for now)
 
-## Notas de seguridad
+## Security notes
 
-Lumen nunca guarda credenciales: la sesión ubus vive en `sessionStorage` y caduca con rpcd.
-Cualquier cambio de red que pueda cortar el acceso debe pasar por `uci apply` con confirmación.
+Lumen never stores credentials: the ubus session lives in `sessionStorage` and expires with rpcd.
+Any change that could cut access must go through `uci apply` with confirmation.

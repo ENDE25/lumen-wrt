@@ -58,22 +58,22 @@
   const errs = $derived.by(() => {
     const e: Record<string, string> = {};
     pools.forEach((p, i) => {
-      if (!int(p.start, 1, 254)) e[`p${i}.start`] = 'Entre 1 y 254';
-      if (!int(p.limit, 1, 1024)) e[`p${i}.limit`] = 'Entre 1 y 1024';
-      if (!leaseRe.test(p.leasetime)) e[`p${i}.leasetime`] = 'Ej.: 12h, 30m, infinite';
+      if (!int(p.start, 1, 254)) e[`p${i}.start`] = 'Between 1 and 254';
+      if (!int(p.limit, 1, 1024)) e[`p${i}.limit`] = 'Between 1 and 1024';
+      if (!leaseRe.test(p.leasetime)) e[`p${i}.leasetime`] = 'E.g. 12h, 30m, infinite';
     });
     if (dns) {
-      if (!int(dns.cachesize, 0, 10000)) e['dns.cachesize'] = 'Entre 0 y 10000';
+      if (!int(dns.cachesize, 0, 10000)) e['dns.cachesize'] = 'Between 0 and 10000';
       for (const l of dns.servers.split('\n').map((x) => x.trim()).filter(Boolean))
-        if (!ipRe.test(l) && !/^[0-9a-f:]+$/i.test(l) && !/^\/.+\/.+$/.test(l)) { e['dns.servers'] = `Servidor no válido: ${l}`; break; }
+        if (!ipRe.test(l) && !/^[0-9a-f:]+$/i.test(l) && !/^\/.+\/.+$/.test(l)) { e['dns.servers'] = `Invalid server: ${l}`; break; }
     }
     hosts.forEach((h, i) => {
       if (h.del) return;
-      if (!macRe.test(h.mac)) e[`h${i}.mac`] = 'MAC no válida';
-      if (!ipRe.test(h.ip)) e[`h${i}.ip`] = 'IP no válida';
-      if (h.leasetime && !leaseRe.test(h.leasetime)) e[`h${i}.leasetime`] = 'No válido';
-      if (hosts.some((o, j) => j < i && !o.del && o.mac.toLowerCase() === h.mac.toLowerCase())) e[`h${i}.mac`] = 'MAC duplicada';
-      if (hosts.some((o, j) => j < i && !o.del && o.ip === h.ip)) e[`h${i}.ip`] = 'IP duplicada';
+      if (!macRe.test(h.mac)) e[`h${i}.mac`] = 'Invalid MAC';
+      if (!ipRe.test(h.ip)) e[`h${i}.ip`] = 'Invalid IP';
+      if (h.leasetime && !leaseRe.test(h.leasetime)) e[`h${i}.leasetime`] = 'Invalid';
+      if (hosts.some((o, j) => j < i && !o.del && o.mac.toLowerCase() === h.mac.toLowerCase())) e[`h${i}.mac`] = 'Duplicate MAC';
+      if (hosts.some((o, j) => j < i && !o.del && o.ip === h.ip)) e[`h${i}.ip`] = 'Duplicate IP';
     });
     return e;
   });
@@ -137,7 +137,7 @@
   function discard() { pools = clone(orig.pools); dns = clone(orig.dns); hosts = clone(orig.hosts); }
   async function save() {
     if (invalid || !dirty) return;
-    const ok = await changes.apply(ops, 'auto', 'Configuración DHCP/DNS aplicada');
+    const ok = await changes.apply(ops, 'auto', 'DHCP/DNS settings applied');
     if (ok) await load();
   }
   const free = $derived(clients.filter((c) => c.ip && !hosts.some((h) => !h.del && h.mac.toLowerCase() === c.mac.toLowerCase())));
@@ -146,34 +146,34 @@
 
 <div class="page">
   <div class="page-head">
-    <h1>DHCP y DNS</h1>
+    <h1>DHCP &amp; DNS</h1>
     <div class="actions">
-      {#if dirty}<span class="muted">{ops.length} {ops.length === 1 ? 'cambio' : 'cambios'} sin aplicar</span>{/if}
-      <button class="btn" onclick={discard} disabled={!dirty || busy}>Descartar</button>
-      <button class="btn primary" onclick={save} disabled={!dirty || invalid || busy}>Guardar y aplicar</button>
+      {#if dirty}<span class="muted">{ops.length} {ops.length === 1 ? 'change' : 'changes'} not applied</span>{/if}
+      <button class="btn" onclick={discard} disabled={!dirty || busy}>Discard</button>
+      <button class="btn primary" onclick={save} disabled={!dirty || invalid || busy}>Save & apply</button>
     </div>
   </div>
 
   {#if loadErr}
-    <div class="card"><p class="muted">No se pudo leer la configuración: {loadErr}</p></div>
+    <div class="card"><p class="muted">Could not read the configuration: {loadErr}</p></div>
   {:else if !loaded}
-    <div class="card"><p class="muted">Cargando…</p></div>
+    <div class="card"><p class="muted">Loading…</p></div>
   {:else}
     <div class="grid cols">
       <div class="card">
-        <div class="card-title"><h2>Servidor DHCP</h2></div>
+        <div class="card-title"><h2>DHCP server</h2></div>
         {#each pools as p, i (p.name)}
           <fieldset>
             <legend>Interfaz <b>{p.iface}</b></legend>
-            <Toggle bind:checked={p.enabled} label={p.enabled ? 'Habilitado' : 'Deshabilitado'} />
+            <Toggle bind:checked={p.enabled} label={p.enabled ? 'Enabled' : 'Disabled'} />
             <div class="f3" class:off={!p.enabled}>
-              <label>Primera IP (offset)<input class="input" bind:value={p.start} inputmode="numeric" disabled={!p.enabled} aria-invalid={!!errs[`p${i}.start`]} />{#if errs[`p${i}.start`]}<small class="err">{errs[`p${i}.start`]}</small>{/if}</label>
-              <label>Nº de direcciones<input class="input" bind:value={p.limit} inputmode="numeric" disabled={!p.enabled} aria-invalid={!!errs[`p${i}.limit`]} />{#if errs[`p${i}.limit`]}<small class="err">{errs[`p${i}.limit`]}</small>{/if}</label>
-              <label>Tiempo de concesión<input class="input" bind:value={p.leasetime} disabled={!p.enabled} aria-invalid={!!errs[`p${i}.leasetime`]} />{#if errs[`p${i}.leasetime`]}<small class="err">{errs[`p${i}.leasetime`]}</small>{/if}</label>
+              <label>First IP (offset)<input class="input" bind:value={p.start} inputmode="numeric" disabled={!p.enabled} aria-invalid={!!errs[`p${i}.start`]} />{#if errs[`p${i}.start`]}<small class="err">{errs[`p${i}.start`]}</small>{/if}</label>
+              <label>Number of addresses<input class="input" bind:value={p.limit} inputmode="numeric" disabled={!p.enabled} aria-invalid={!!errs[`p${i}.limit`]} />{#if errs[`p${i}.limit`]}<small class="err">{errs[`p${i}.limit`]}</small>{/if}</label>
+              <label>Lease time<input class="input" bind:value={p.leasetime} disabled={!p.enabled} aria-invalid={!!errs[`p${i}.leasetime`]} />{#if errs[`p${i}.leasetime`]}<small class="err">{errs[`p${i}.leasetime`]}</small>{/if}</label>
             </div>
           </fieldset>
         {:else}
-          <p class="muted">No hay servidores DHCP configurados.</p>
+          <p class="muted">No DHCP servers configured.</p>
         {/each}
       </div>
 
@@ -181,17 +181,17 @@
         <div class="card">
           <div class="card-title"><h2>DNS</h2></div>
           <div class="f2">
-            <label>Dominio local<input class="input" bind:value={dns.domain} placeholder="lan" /></label>
-            <label>Resolver local<input class="input" bind:value={dns.local} placeholder="/lan/" /></label>
-            <label>Tamaño de caché<input class="input" bind:value={dns.cachesize} inputmode="numeric" aria-invalid={!!errs['dns.cachesize']} />{#if errs['dns.cachesize']}<small class="err">{errs['dns.cachesize']}</small>{/if}</label>
+            <label>Local domain<input class="input" bind:value={dns.domain} placeholder="lan" /></label>
+            <label>Local resolver<input class="input" bind:value={dns.local} placeholder="/lan/" /></label>
+            <label>Cache size<input class="input" bind:value={dns.cachesize} inputmode="numeric" aria-invalid={!!errs['dns.cachesize']} />{#if errs['dns.cachesize']}<small class="err">{errs['dns.cachesize']}</small>{/if}</label>
           </div>
-          <label class="full">Servidores DNS ascendentes <span class="faint">(uno por línea)</span>
+          <label class="full">Upstream DNS servers <span class="faint">(one per line)</span>
             <textarea class="input ta" rows="3" bind:value={dns.servers} placeholder="1.1.1.1&#10;9.9.9.9" aria-invalid={!!errs['dns.servers']}></textarea>
             {#if errs['dns.servers']}<small class="err">{errs['dns.servers']}</small>{/if}
           </label>
           <div class="tgs">
-            <Toggle bind:checked={dns.rebind} label="Protección contra DNS rebinding" />
-            <Toggle bind:checked={dns.noresolv} label="Ignorar DNS del proveedor (usar solo los de arriba)" />
+            <Toggle bind:checked={dns.rebind} label="DNS rebinding protection" />
+            <Toggle bind:checked={dns.noresolv} label="Ignore ISP-provided DNS (use only the servers above)" />
           </div>
         </div>
       {/if}
@@ -199,34 +199,34 @@
 
     <div class="card" style="margin-top:16px">
       <div class="card-title">
-        <h2>Reservas de IP estáticas <span class="faint">{shownHosts.length}</span></h2>
+        <h2>Static IP reservations <span class="faint">{shownHosts.length}</span></h2>
         <div class="actions">
           {#if free.length}
-            <select class="input pick" aria-label="Añadir desde un cliente conocido" onchange={(e) => { const c = free.find((x) => x.mac === e.currentTarget.value); if (c) addHost(c); e.currentTarget.value = ''; }}>
-              <option value="">Añadir desde un cliente…</option>
+            <select class="input pick" aria-label="Add from a known client" onchange={(e) => { const c = free.find((x) => x.mac === e.currentTarget.value); if (c) addHost(c); e.currentTarget.value = ''; }}>
+              <option value="">Add from a client…</option>
               {#each free as c}<option value={c.mac}>{c.name || c.mac} — {c.ip}</option>{/each}
             </select>
           {/if}
-          <button class="btn" onclick={() => addHost()}><Icon name="plus" size={16} />Añadir</button>
+          <button class="btn" onclick={() => addHost()}><Icon name="plus" size={16} />Add</button>
         </div>
       </div>
       {#if shownHosts.length}
         <div class="tw"><table class="tbl">
-          <thead><tr><th>Nombre</th><th>MAC</th><th>IP</th><th>Concesión</th><th></th></tr></thead>
+          <thead><tr><th>Name</th><th>MAC</th><th>IP</th><th>Lease</th><th></th></tr></thead>
           <tbody>
             {#each shownHosts as { h, i } (h.id)}
               <tr>
-                <td><input class="input" bind:value={h.name} placeholder="nombre" aria-label="Nombre" /></td>
+                <td><input class="input" bind:value={h.name} placeholder="name" aria-label="Name" /></td>
                 <td><input class="input mono" bind:value={h.mac} placeholder="AA:BB:CC:DD:EE:FF" aria-label="MAC" aria-invalid={!!errs[`h${i}.mac`]} />{#if errs[`h${i}.mac`]}<small class="err">{errs[`h${i}.mac`]}</small>{/if}</td>
                 <td><input class="input" bind:value={h.ip} placeholder="192.168.1.50" aria-label="IP" aria-invalid={!!errs[`h${i}.ip`]} />{#if errs[`h${i}.ip`]}<small class="err">{errs[`h${i}.ip`]}</small>{/if}</td>
-                <td><input class="input narrow" bind:value={h.leasetime} placeholder="por defecto" aria-label="Concesión" aria-invalid={!!errs[`h${i}.leasetime`]} /></td>
-                <td><button class="btn icon danger" onclick={() => removeHost(h)} aria-label="Eliminar reserva"><Icon name="trash" size={16} /></button></td>
+                <td><input class="input narrow" bind:value={h.leasetime} placeholder="default" aria-label="Lease" aria-invalid={!!errs[`h${i}.leasetime`]} /></td>
+                <td><button class="btn icon danger" onclick={() => removeHost(h)} aria-label="Delete reservation"><Icon name="trash" size={16} /></button></td>
               </tr>
             {/each}
           </tbody>
         </table></div>
       {:else}
-        <p class="muted">No hay reservas. Una reserva asigna siempre la misma IP a un dispositivo.</p>
+        <p class="muted">No reservations yet. A reservation always gives the same IP to a device.</p>
       {/if}
     </div>
   {/if}

@@ -20,8 +20,8 @@
   });
 
   const KIND: Record<string, string> = {
-    phone: 'Móvil', laptop: 'Portátil', desktop: 'Sobremesa', tv: 'TV', printer: 'Impresora',
-    iot: 'IoT', server: 'Servidor', router: 'Red', unknown: 'Desconocido',
+    phone: 'Phone', laptop: 'Laptop', desktop: 'Desktops', tv: 'TV', printer: 'Printer',
+    iot: 'IoT', server: 'Server', router: 'Network', unknown: 'Unknown',
   };
   const rows = $derived.by(() => {
     const s = q.trim().toLowerCase();
@@ -35,33 +35,33 @@
   const toggle = (k: 'name' | 'ip' | 'kind') =>
     (sort = sort?.k === k ? (sort.dir === 1 ? { k, dir: -1 } : null) : { k, dir: 1 });
   const arrow = (k: string) => (sort?.k === k ? (sort.dir === 1 ? ' ↑' : ' ↓') : '');
-  const lease = (c: Client) => c.leaseExpires === undefined ? 'Estática / sin DHCP' : duration(c.leaseExpires);
+  const lease = (c: Client) => c.leaseExpires === undefined ? 'Static / no DHCP' : duration(c.leaseExpires);
 </script>
 
 <div class="page">
   <div class="page-head">
-    <h1>Clientes <span class="faint">{loaded ? clients.length : ''}</span></h1>
+    <h1>Clients <span class="faint">{loaded ? clients.length : ''}</span></h1>
     <div class="search">
       <Icon name="search" size={16} />
-      <input class="input" placeholder="Buscar por nombre, IP o MAC" bind:value={q} aria-label="Buscar clientes" />
+      <input class="input" placeholder="Search by name, IP or MAC" bind:value={q} aria-label="Search clients" />
     </div>
   </div>
 
   <div class="card tablewrap">
     <table class="tbl">
       <thead><tr>
-        <th><button onclick={() => toggle('name')}>Nombre{arrow('name')}</button></th>
+        <th><button onclick={() => toggle('name')}>Name{arrow('name')}</button></th>
         <th><button onclick={() => toggle('ip')}>IP{arrow('ip')}</button></th>
-        <th>Conexión</th>
+        <th>Connection</th>
         <th>MAC</th>
-        <th><button onclick={() => toggle('kind')}>Tipo{arrow('kind')}</button></th>
-        <th>Concesión DHCP</th>
+        <th><button onclick={() => toggle('kind')}>Type{arrow('kind')}</button></th>
+        <th>DHCP lease</th>
       </tr></thead>
       <tbody>
         {#each rows as c (c.mac)}
           <tr class="click" class:sel={sel?.mac === c.mac} onclick={() => (sel = c)} tabindex="0"
             onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && (sel = c)}>
-            <td><span class="who"><span class="ico"><Icon name={c.kind} size={18} /></span>{c.name || 'Sin nombre'}</span></td>
+            <td><span class="who"><span class="ico"><Icon name={c.kind} size={18} /></span>{c.name || 'Unnamed'}</span></td>
             <td class="num">{c.ip || '—'}</td>
             <td>{#if c.link?.type === 'wifi'}<span class="conn"><Icon name="wifi" size={15} />{c.link.ssid}<SignalBars dbm={c.link.signal} /></span>{:else if c.link}<span class="conn"><Icon name="devices" size={15} />{c.link.dev}</span>{:else}<span class="faint">—</span>{/if}</td>
             <td class="mono muted">{c.mac}</td>
@@ -69,7 +69,7 @@
             <td class="muted">{lease(c)}</td>
           </tr>
         {:else}
-          <tr><td colspan="6" class="empty muted">{loaded ? 'No hay clientes que coincidan.' : 'Cargando…'}</td></tr>
+          <tr><td colspan="6" class="empty muted">{loaded ? 'No matching clients.' : 'Loading…'}</td></tr>
         {/each}
       </tbody>
     </table>
@@ -78,12 +78,12 @@
 
 <Drawer open={!!sel} title={sel?.name || 'Cliente'} onclose={() => (sel = null)}>
   {#if sel}
-    <div class="det-hero"><span class="ico big"><Icon name={sel.kind} size={30} /></span><div><b>{sel.name || 'Sin nombre'}</b><p class="muted">{KIND[sel.kind]}</p></div></div>
-    <div class="stat-row"><span>Dirección IP</span><b class="num">{sel.ip || '—'}</b></div>
-    <div class="stat-row"><span>Conexión</span><b>{sel.link ? (sel.link.type === 'wifi' ? `Wi-Fi · ${sel.link.ssid} (${sel.link.band})` : `Cable · ${sel.link.dev}`) : 'Desconocida'}</b></div>
-    {#if sel.link?.signal !== undefined}<div class="stat-row"><span>Señal</span><b class="num">{sel.link.signal} dBm</b></div>{/if}
+    <div class="det-hero"><span class="ico big"><Icon name={sel.kind} size={30} /></span><div><b>{sel.name || 'Unnamed'}</b><p class="muted">{KIND[sel.kind]}</p></div></div>
+    <div class="stat-row"><span>IP address</span><b class="num">{sel.ip || '—'}</b></div>
+    <div class="stat-row"><span>Connection</span><b>{sel.link ? (sel.link.type === 'wifi' ? `Wi-Fi · ${sel.link.ssid} (${sel.link.band})` : `Wired · ${sel.link.dev}`) : 'Unknown'}</b></div>
+    {#if sel.link?.signal !== undefined}<div class="stat-row"><span>Signal</span><b class="num">{sel.link.signal} dBm</b></div>{/if}
     <div class="stat-row"><span>MAC</span><b class="mono">{sel.mac}</b></div>
-    <div class="stat-row"><span>Concesión DHCP</span><b>{lease(sel)}</b></div>
+    <div class="stat-row"><span>DHCP lease</span><b>{lease(sel)}</b></div>
     {#each sel.ip6 as a}<div class="stat-row"><span>IPv6</span><b class="mono">{a}</b></div>{/each}
   {/if}
 </Drawer>

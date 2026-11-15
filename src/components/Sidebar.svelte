@@ -5,17 +5,17 @@
   import { logout, MOCK } from '../lib/ubus';
 
   const items = [
-    { id: 'dashboard', icon: 'dashboard', label: 'Panel' },
-    { id: 'topology', icon: 'network', label: 'Topología' },
-    { id: 'network', icon: 'devices', label: 'Red' },
-    { id: 'clients', icon: 'clients', label: 'Clientes' },
-    { id: 'dhcp', icon: 'dns', label: 'DHCP y DNS' },
-    { id: 'logs', icon: 'logs', label: 'Registros' },
-    { id: 'system', icon: 'settings', label: 'Sistema' },
+    { id: 'dashboard', icon: 'dashboard', label: 'Dashboard' },
+    { id: 'map', icon: 'network', label: 'Network Map' },
+    { id: 'network', icon: 'devices', label: 'Network' },
+    { id: 'clients', icon: 'clients', label: 'Clients' },
+    { id: 'dhcp', icon: 'dns', label: 'DHCP & DNS' },
+    { id: 'logs', icon: 'logs', label: 'Logs' },
+    { id: 'system', icon: 'settings', label: 'System' },
   ];
 </script>
 
-<nav class="rail" aria-label="Principal">
+<nav class="rail" aria-label="Main">
   <a class="logo" href="#/dashboard" aria-label="Lumen">
     <svg width="34" height="34" viewBox="0 0 32 32"><rect width="32" height="32" rx="9" fill="var(--accent)"/><circle cx="16" cy="16" r="6" fill="none" stroke="#fff" stroke-width="2.4"/><circle cx="16" cy="16" r="1.8" fill="#fff"/></svg>
   </a>
@@ -28,8 +28,8 @@
     {/each}
   </div>
   <div class="foot">
-    <button onclick={() => theme.toggle()} aria-label="Cambiar tema"><Icon name="moon" /><span class="tip">Tema</span></button>
-    {#if !MOCK}<button onclick={logout} aria-label="Cerrar sesión"><Icon name="logout" /><span class="tip">Salir</span></button>{/if}
+    <button onclick={() => theme.toggle()} aria-label="Toggle theme"><Icon name="moon" /><span class="tip">Theme</span></button>
+    {#if !MOCK}<button onclick={logout} aria-label="Sign out"><Icon name="logout" /><span class="tip">Sign out</span></button>{/if}
   </div>
 </nav>
 

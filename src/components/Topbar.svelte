@@ -9,8 +9,8 @@
   <div class="site"><span class="dot" class:ok class:bad={!ok}></span><strong>{hostname || 'Lumen'}</strong></div>
   <span class="app">Lumen</span>
   <div class="right">
-    {#if MOCK}<span class="pill">Modo demo</span>{/if}
-    {#if live.error}<span class="pill" style="color:var(--bad)">Sin conexión con el router</span>{/if}
+    {#if MOCK}<span class="pill">Demo mode</span>{/if}
+    {#if live.error}<span class="pill" style="color:var(--bad)">Router unreachable</span>{/if}
   </div>
 </header>
 

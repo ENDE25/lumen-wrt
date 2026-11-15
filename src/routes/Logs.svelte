@@ -19,19 +19,19 @@
 
 <div class="page">
   <div class="page-head">
-    <h1>Registros</h1>
+    <h1>Logs</h1>
     <div class="tools">
-      <div class="search"><Icon name="search" size={16} /><input class="input" placeholder="Filtrar" bind:value={q} aria-label="Filtrar registros" /></div>
-      <label class="chk"><input type="checkbox" bind:checked={auto} /> Actualizar</label>
-      <button class="btn" onclick={load}><Icon name="refresh" size={16} />Recargar</button>
+      <div class="search"><Icon name="search" size={16} /><input class="input" placeholder="Filter" bind:value={q} aria-label="Filter logs" /></div>
+      <label class="chk"><input type="checkbox" bind:checked={auto} /> Auto-refresh</label>
+      <button class="btn" onclick={load}><Icon name="refresh" size={16} />Reload</button>
     </div>
   </div>
   <div class="card log">
-    {#if err}<p class="muted">No se pudo leer el registro: {err}</p>{/if}
+    {#if err}<p class="muted">Could not read the log: {err}</p>{/if}
     {#each shown as l}
       <div class="ln {tone(l.msg)}">{l.msg}</div>
     {:else}
-      {#if !err}<p class="muted">Sin entradas.</p>{/if}
+      {#if !err}<p class="muted">No entries.</p>{/if}
     {/each}
   </div>
 </div>

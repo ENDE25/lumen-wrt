@@ -14,14 +14,14 @@
 {#if changes.phase === 'pending'}
   <div class="bar warn" role="alertdialog" aria-live="assertive">
     <Icon name="alert" size={20} />
-    <div class="msg"><b>{changes.note}</b><span>Confirma que todo funciona. Se revertirá solo en <b class="num">{changes.remaining} s</b>.</span></div>
-    <button class="btn" onclick={() => changes.rollback()}>Revertir</button>
-    <button class="btn primary" onclick={() => changes.confirm()}>Confirmar</button>
+    <div class="msg"><b>{changes.note}</b><span>Make sure everything still works. It will roll back automatically in <b class="num">{changes.remaining} s</b>.</span></div>
+    <button class="btn" onclick={() => changes.rollback()}>Roll back</button>
+    <button class="btn primary" onclick={() => changes.confirm()}>Confirm</button>
   </div>
 {:else if changes.phase === 'applying'}
-  <div class="bar"><Icon name="refresh" size={18} /><span>Aplicando cambios…</span></div>
+  <div class="bar"><Icon name="refresh" size={18} /><span>Applying changes…</span></div>
 {:else if changes.error}
-  <div class="bar bad" role="alert"><Icon name="alert" size={18} /><span>{changes.error}</span><button class="btn" onclick={() => (changes.error = '')}>Cerrar</button></div>
+  <div class="bar bad" role="alert"><Icon name="alert" size={18} /><span>{changes.error}</span><button class="btn" onclick={() => (changes.error = '')}>Dismiss</button></div>
 {:else if shown}
   <div class="bar ok" role="status"><Icon name="check" size={18} /><span>{shown}</span></div>
 {/if}

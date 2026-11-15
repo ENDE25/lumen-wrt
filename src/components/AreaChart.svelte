@@ -34,7 +34,7 @@
   <div class="axis">
     {#each ticks as t}<span style:bottom="{t.f * 100}%">{t.label}</span>{/each}
   </div>
-  <svg viewBox="0 0 {W} {height}" preserveAspectRatio="none" role="img" aria-label="Tráfico en tiempo real"
+  <svg viewBox="0 0 {W} {height}" preserveAspectRatio="none" role="img" aria-label="Live traffic"
     onpointermove={move} onpointerleave={() => (hover = null)}>
     <defs>
       <linearGradient id="grx" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--rx)" stop-opacity=".32"/><stop offset="1" stop-color="var(--rx)" stop-opacity="0"/></linearGradient>
@@ -50,11 +50,11 @@
   {#if hp && hover !== null}
     <div class="tip" style:left="{(hover / Math.max(1, data.length - 1)) * 100}%" class:flip={hover > data.length * 0.65}>
       <time>{new Date(hp.t).toLocaleTimeString()}</time>
-      <div><i style="background:var(--rx)"></i>Bajada <b class="num">{bps(hp.rx)}</b></div>
-      <div><i style="background:var(--tx)"></i>Subida <b class="num">{bps(hp.tx)}</b></div>
+      <div><i style="background:var(--rx)"></i>Download <b class="num">{bps(hp.rx)}</b></div>
+      <div><i style="background:var(--tx)"></i>Upload <b class="num">{bps(hp.tx)}</b></div>
     </div>
   {/if}
-  {#if data.length < 2}<p class="empty muted">Recopilando datos…</p>{/if}
+  {#if data.length < 2}<p class="empty muted">Collecting data…</p>{/if}
 </div>
 
 <style>

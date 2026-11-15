@@ -5,7 +5,7 @@
   import SignalBars from '../components/SignalBars.svelte';
   import { live } from '../lib/live.svelte';
   import { getBoard, getNetworkMap } from '../lib/api';
-  import { buildGraph, type GNode } from '../lib/topology';
+  import { buildGraph, type GNode } from '../lib/netmap';
   import { bytes, cidr, duration } from '../lib/format';
   import type { Board, NetworkMap } from '../lib/types';
 
@@ -39,17 +39,17 @@
 
 <div class="page">
   <div class="page-head">
-    <h1>Topología</h1>
+    <h1>Network Map</h1>
     <div class="leg">
-      <span><i class="ln"></i>Cable · {nWired}</span>
+      <span><i class="ln"></i>Wired · {nWired}</span>
       <span><i class="ln dash"></i>Wi-Fi · {nWifi}</span>
-      <span class="faint">{map.clients.length} clientes</span>
+      <span class="faint">{map.clients.length} clients</span>
     </div>
   </div>
 
   <div class="card wrap" bind:clientWidth={boxW}>
     {#if !loaded}
-      <p class="muted pad">Cargando topología…</p>
+      <p class="muted pad">Loading network map…</p>
     {:else}
       <div class="sizer" style:height="{g.height * scale}px">
         <div class="canvas" style:width="{g.width}px" style:height="{g.height}px" style:left="{Math.max(0, (boxW - g.width * scale) / 2)}px" style:transform="scale({scale})">
@@ -57,7 +57,7 @@
             {#each g.links as l (l.id)}
               {@const a = byId.get(l.from)} {@const b = byId.get(l.to)}
               {#if a && b}
-                <path d={path(a, b)} class="link" class:wifi={l.wifi} class:down={!l.up} />
+                <path d={path(a, b)} class="link" class:wifi={l.wifi} class:down={!l.up} class:hub={l.from === 'router' || l.to === 'router'} />
                 {#if l.label}<text x={(a.x + a.w + b.x) / 2} y={a.y + a.h / 2 - 8} text-anchor="middle">{l.label}</text>{/if}
               {/if}
             {/each}
@@ -81,42 +81,42 @@
   {#if cur}
     {#if cur.kind === 'client' && cur.client}
       {@const c = cur.client}
-      <div class="stat-row"><span>Dirección IP</span><b class="num">{c.ip || '—'}</b></div>
+      <div class="stat-row"><span>IP address</span><b class="num">{c.ip || '—'}</b></div>
       <div class="stat-row"><span>MAC</span><b class="mono">{c.mac}</b></div>
-      <div class="stat-row"><span>Conexión</span><b>{c.link ? (c.link.type === 'wifi' ? 'Wi-Fi' : 'Cable') : 'Desconocida'}</b></div>
+      <div class="stat-row"><span>Connection</span><b>{c.link ? (c.link.type === 'wifi' ? 'Wi-Fi' : 'Wired') : 'Unknown'}</b></div>
       {#if c.link?.type === 'wifi'}
-        <div class="stat-row"><span>Red</span><b>{c.link.ssid} · {c.link.band}</b></div>
-        <div class="stat-row"><span>Señal</span><b class="num"><SignalBars dbm={c.link.signal} /> {c.link.signal} dBm</b></div>
-        <div class="stat-row"><span>Velocidad ↓ / ↑</span><b class="num">{mbps(c.link.tx)} / {mbps(c.link.rx)}</b></div>
+        <div class="stat-row"><span>Network</span><b>{c.link.ssid} · {c.link.band}</b></div>
+        <div class="stat-row"><span>Signal</span><b class="num"><SignalBars dbm={c.link.signal} /> {c.link.signal} dBm</b></div>
+        <div class="stat-row"><span>Speed ↓ / ↑</span><b class="num">{mbps(c.link.tx)} / {mbps(c.link.rx)}</b></div>
       {:else if c.link}
-        <div class="stat-row"><span>Puerto</span><b class="mono">{c.link.dev}</b></div>
+        <div class="stat-row"><span>Port</span><b class="mono">{c.link.dev}</b></div>
       {/if}
-      {#if c.leaseExpires !== undefined}<div class="stat-row"><span>Concesión DHCP</span><b>{duration(c.leaseExpires)}</b></div>{/if}
+      {#if c.leaseExpires !== undefined}<div class="stat-row"><span>DHCP lease</span><b>{duration(c.leaseExpires)}</b></div>{/if}
     {:else if cur.kind === 'port' && cur.port}
       {@const d = cur.port}
-      <div class="stat-row"><span>Estado</span><b>{d.carrier ? 'Con enlace' : 'Sin enlace'}</b></div>
-      <div class="stat-row"><span>Velocidad</span><b>{d.speed ?? '—'}</b></div>
-      <div class="stat-row"><span>Clientes</span><b class="num">{cur.count}</b></div>
-      <div class="stat-row"><span>Recibido</span><b class="num">{bytes(d.statistics?.rx_bytes ?? 0)}</b></div>
-      <div class="stat-row"><span>Enviado</span><b class="num">{bytes(d.statistics?.tx_bytes ?? 0)}</b></div>
+      <div class="stat-row"><span>Status</span><b>{d.carrier ? 'Linked' : 'No link'}</b></div>
+      <div class="stat-row"><span>Speed</span><b>{d.speed ?? '—'}</b></div>
+      <div class="stat-row"><span>Clients</span><b class="num">{cur.count}</b></div>
+      <div class="stat-row"><span>Received</span><b class="num">{bytes(d.statistics?.rx_bytes ?? 0)}</b></div>
+      <div class="stat-row"><span>Sent</span><b class="num">{bytes(d.statistics?.tx_bytes ?? 0)}</b></div>
     {:else if cur.kind === 'ssid' && cur.wifi}
       {@const w = cur.wifi}
       <div class="stat-row"><span>SSID</span><b>{w.ssid}</b></div>
-      <div class="stat-row"><span>Interfaz</span><b class="mono">{w.ifname}</b></div>
-      <div class="stat-row"><span>Banda / canal</span><b>{w.band} · {w.channel ?? '—'}</b></div>
-      <div class="stat-row"><span>Clientes</span><b class="num">{w.clients.length}</b></div>
+      <div class="stat-row"><span>Interface</span><b class="mono">{w.ifname}</b></div>
+      <div class="stat-row"><span>Band / channel</span><b>{w.band} · {w.channel ?? '—'}</b></div>
+      <div class="stat-row"><span>Clients</span><b class="num">{w.clients.length}</b></div>
     {:else if cur.kind === 'internet'}
       {@const w = cur.iface}
       {#if w}
-        <div class="stat-row"><span>Interfaz</span><b>{w.interface} · {w.l3_device}</b></div>
-        <div class="stat-row"><span>Protocolo</span><b>{w.proto.toUpperCase()}</b></div>
-        {#if w['ipv4-address']?.[0]}<div class="stat-row"><span>IP pública</span><b class="num">{cidr(w['ipv4-address'][0])}</b></div>{/if}
-        <div class="stat-row"><span>Puerta de enlace</span><b class="num">{w.route?.find((r) => r.target === '0.0.0.0')?.nexthop ?? '—'}</b></div>
+        <div class="stat-row"><span>Interface</span><b>{w.interface} · {w.l3_device}</b></div>
+        <div class="stat-row"><span>Protocol</span><b>{w.proto.toUpperCase()}</b></div>
+        {#if w['ipv4-address']?.[0]}<div class="stat-row"><span>Public IP</span><b class="num">{cidr(w['ipv4-address'][0])}</b></div>{/if}
+        <div class="stat-row"><span>Gateway</span><b class="num">{w.route?.find((r) => r.target === '0.0.0.0')?.nexthop ?? '—'}</b></div>
         <div class="stat-row"><span>DNS</span><b class="num">{w['dns-server']?.join(', ') ?? '—'}</b></div>
-      {:else}<p class="muted">Sin conexión a Internet.</p>{/if}
+      {:else}<p class="muted">No Internet connection.</p>{/if}
     {:else if cur.kind === 'router'}
       <div class="stat-row"><span>Host</span><b>{board?.hostname}</b></div>
-      <div class="stat-row"><span>Modelo</span><b>{board?.model}</b></div>
+      <div class="stat-row"><span>Model</span><b>{board?.model}</b></div>
       <div class="stat-row"><span>Firmware</span><b>{board?.release.description}</b></div>
     {/if}
   {/if}
@@ -143,7 +143,16 @@
   .node.active { border-color: var(--accent); background: var(--accent-soft); }
   .node.off { opacity: .55; }
   .ico { flex: none; width: 34px; height: 34px; border-radius: 9px; background: var(--surface-2); color: var(--text-2); display: grid; place-items: center; }
-  .router .ico, .internet .ico { width: 46px; height: 46px; border-radius: 12px; background: var(--accent-soft); color: var(--accent); }
+    .node.router { background: var(--accent); border-color: var(--accent); color: #fff; gap: 14px; padding: 0 18px;
+    box-shadow: 0 10px 30px color-mix(in srgb, var(--accent) 38%, transparent); }
+  .node.router::before { content: ''; position: absolute; inset: -7px; border-radius: 19px; border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); pointer-events: none; }
+  .node.router:hover, .node.router.active { border-color: var(--accent); filter: brightness(1.07); }
+  .router .ico, .internet .ico { width: 46px; height: 46px; border-radius: 12px; }
+  .router .ico { background: rgba(255, 255, 255, .2); color: #fff; }
+  .internet .ico { background: var(--accent-soft); color: var(--accent); }
+  .router .txt b { font-size: 15px; } .router .txt small { color: rgba(255, 255, 255, .82); }
+  .link.hub { stroke: var(--accent); stroke-opacity: .55; stroke-width: 2; }
+  .link.hub.wifi { stroke-opacity: .75; }
   .ssid .ico { color: var(--accent); background: var(--accent-soft); }
   .txt { display: grid; min-width: 0; flex: 1; line-height: 1.25; }
   .txt b { font-weight: 600; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

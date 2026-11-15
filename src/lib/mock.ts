@@ -34,23 +34,23 @@ const dev = (name: string, extra: object = {}) => ({
 });
 
 const HOSTS: [string, string, string, string][] = [
-  ['A4:83:E7:11:22:01', 'iPhone-de-Marta', '192.168.1.101', 'phone'],
+  ['A4:83:E7:11:22:01', 'Marta-iPhone', '192.168.1.101', 'phone'],
   ['F0:18:98:0B:3C:02', 'MacBook-Pro', '192.168.1.102', 'laptop'],
   ['DC:A6:32:4F:19:03', 'raspberrypi', '192.168.1.10', 'server'],
   ['3C:5A:B4:77:AA:04', 'Chromecast', '192.168.1.120', 'tv'],
   ['00:11:32:AB:CD:05', 'NAS-Synology', '192.168.1.5', 'server'],
-  ['B8:27:EB:90:12:06', 'Impresora-HP', '192.168.1.30', 'printer'],
-  ['C8:2B:96:33:44:07', 'Shelly-Salon', '192.168.1.140', 'iot'],
+  ['B8:27:EB:90:12:06', 'Printer-HP', '192.168.1.30', 'printer'],
+  ['C8:2B:96:33:44:07', 'Shelly-Lounge', '192.168.1.140', 'iot'],
   ['64:16:66:AA:BB:08', 'Galaxy-S23', '192.168.1.103', 'phone'],
   ['9C:B6:D0:12:34:09', 'DESKTOP-GAMING', '192.168.1.50', 'desktop'],
   ['50:DE:06:55:66:0A', 'Apple-TV', '192.168.1.121', 'tv'],
   ['E4:5F:01:01:02:0B', '', '192.168.1.151', 'iot'],
-  ['AC:84:C6:99:88:0C', 'Portatil-Dell', '192.168.1.104', 'laptop'],
+  ['AC:84:C6:99:88:0C', 'Laptop-Dell', '192.168.1.104', 'laptop'],
 ];
 
 const LOG = [
   'daemon.notice netifd: Interface \'wan\' is now up',
-  'daemon.info dnsmasq-dhcp[1234]: DHCPACK(br-lan) 192.168.1.101 a4:83:e7:11:22:01 iPhone-de-Marta',
+  'daemon.info dnsmasq-dhcp[1234]: DHCPACK(br-lan) 192.168.1.101 a4:83:e7:11:22:01 Marta-iPhone',
   'kern.info kernel: [ 1.2] br-lan: port 2(phy0-ap0) entered forwarding state',
   'daemon.info hostapd: phy0-ap0: STA 64:16:66:aa:bb:08 IEEE 802.11: associated',
   'daemon.notice odhcpd[1100]: Using a RA lifetime of 1800 seconds on br-lan',
@@ -59,11 +59,11 @@ const LOG = [
 
 // name -> [attachment, signal dBm]; anything not listed here is wired on lan1/lan2.
 const WIFI: Record<string, [string, number]> = {
-  'iPhone-de-Marta': ['phy0-ap0', -52], 'MacBook-Pro': ['phy0-ap0', -47], 'Portatil-Dell': ['phy0-ap0', -63],
+  'Marta-iPhone': ['phy0-ap0', -52], 'MacBook-Pro': ['phy0-ap0', -47], 'Laptop-Dell': ['phy0-ap0', -63],
   'Apple-TV': ['phy0-ap0', -58], 'Galaxy-S23': ['phy1-ap0', -61], 'Chromecast': ['phy1-ap0', -66],
-  'Shelly-Salon': ['phy1-ap0', -72], '': ['phy1-ap0', -78],
+  'Shelly-Lounge': ['phy1-ap0', -72], '': ['phy1-ap0', -78],
 };
-const WIRED: Record<string, string> = { raspberrypi: 'lan1', 'NAS-Synology': 'lan1', 'Impresora-HP': 'lan2', 'DESKTOP-GAMING': 'lan2' };
+const WIRED: Record<string, string> = { raspberrypi: 'lan1', 'NAS-Synology': 'lan1', 'Printer-HP': 'lan2', 'DESKTOP-GAMING': 'lan2' };
 
 // Tiny in-memory UCI so the DHCP/DNS page is fully usable in demo mode.
 const UCI: Record<string, Record<string, any>> = {

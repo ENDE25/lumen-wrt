@@ -1,4 +1,4 @@
-// Turns raw router data into a laid-out graph:  Internet → Router → ports / SSIDs → clients.
+// Turns raw router data into a laid-out graph (a router-centred map):  Internet → Router → ports / SSIDs → clients.
 import type { Board, Client, NetDevice, NetInterface, WifiIface } from './types';
 
 export type NodeKind = 'internet' | 'router' | 'port' | 'ssid' | 'client';
@@ -12,7 +12,7 @@ export interface GLink { id: string; from: string; to: string; wifi: boolean; up
 export interface Graph { nodes: GNode[]; links: GLink[]; width: number; height: number }
 
 export const COL = { internet: 24, router: 330, attach: 600, client: 910 } as const;
-const W = { internet: 190, router: 200, attach: 220, client: 250 } as const;
+const W = { internet: 190, router: 230, attach: 220, client: 250 } as const;
 const ROW = 62, GAP = 22, CH = 50, AH = 58;
 
 const VIRTUAL = /^(lo|ifb|veth|tap|tun|wg|bond|dummy|erspan|gre|ip6|sit|teql|bonding|phy|wlan)/;
@@ -46,21 +46,21 @@ export function buildGraph(p: {
     const net = ifaceOfDev(d.name)?.interface ?? Object.entries(bridges).find(([, m]) => m.includes(d.name))?.[0];
     attaches.push({
       id: `port:${d.name}`, kind: 'port', clients: byDev.get(d.name) ?? [],
-      node: { title: d.name, sub: [d.carrier ? speed(d.speed) || 'Activo' : 'Sin enlace', net].filter(Boolean).join(' · '), icon: 'devices', up: d.carrier, port: d },
+      node: { title: d.name, sub: [d.carrier ? speed(d.speed) || 'Up' : 'No link', net].filter(Boolean).join(' · '), icon: 'devices', up: d.carrier, port: d },
     });
     byDev.delete(d.name);
   }
   for (const w of wifi) {
     attaches.push({
       id: `ssid:${w.ifname}`, kind: 'ssid', clients: byDev.get(w.ifname) ?? [],
-      node: { title: w.ssid || w.ifname, sub: [w.band, w.channel ? `canal ${w.channel}` : ''].filter(Boolean).join(' · '), icon: 'wifi', up: true, wifi: w },
+      node: { title: w.ssid || w.ifname, sub: [w.band, w.channel ? `ch ${w.channel}` : ''].filter(Boolean).join(' · '), icon: 'wifi', up: true, wifi: w },
     });
     byDev.delete(w.ifname);
   }
   // leftovers: bridge itself or unknown attachment
   for (const [dev, list] of byDev) {
     if (dev === wanDev || bridgeNames.has(dev) || dev === '__unknown')
-      attaches.push({ id: `port:${dev}`, kind: 'port', clients: list, node: { title: dev === '__unknown' ? 'Sin ubicación' : dev, sub: dev === '__unknown' ? 'Ubicación desconocida' : 'Puerto no identificado', icon: 'devices', up: true } });
+      attaches.push({ id: `port:${dev}`, kind: 'port', clients: list, node: { title: dev === '__unknown' ? 'Unplaced' : dev, sub: dev === '__unknown' ? 'Unknown location' : 'Unidentified port', icon: 'devices', up: true } });
   }
 
   // ---- layout: stack attachments, each with its clients in consecutive rows
@@ -84,12 +84,12 @@ export function buildGraph(p: {
   const mid = rows.length ? (rows[0].cy + rows[rows.length - 1].cy) / 2 : height / 2;
 
   nodes.push({
-    id: 'router', kind: 'router', x: COL.router, y: mid - 40, w: W.router, h: 80, up: true, icon: 'router',
+    id: 'router', kind: 'router', x: COL.router, y: mid - 52, w: W.router, h: 104, up: true, icon: 'router',
     title: board?.hostname || 'Router', sub: board?.model || board?.release.description || '',
   });
   nodes.push({
     id: 'internet', kind: 'internet', x: COL.internet, y: mid - 36, w: W.internet, h: 72, up: !!wan, icon: 'network',
-    title: 'Internet', sub: wan?.['ipv4-address']?.[0]?.address ?? (wan ? wan.proto : 'Sin conexión'), iface: wan,
+    title: 'Internet', sub: wan?.['ipv4-address']?.[0]?.address ?? (wan ? wan.proto : 'Offline'), iface: wan,
   });
   links.push({ id: 'internet>router', from: 'internet', to: 'router', wifi: false, up: !!wan, label: wan ? `${wan.interface} · ${wanDev}` : undefined });
   for (const a of attaches) links.push({ id: `router>${a.id}`, from: 'router', to: a.id, wifi: a.kind === 'ssid', up: a.node.up ?? true });

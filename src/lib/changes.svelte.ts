@@ -16,7 +16,7 @@ class Changes {
    * @param mode 'auto' confirms as soon as the router answers again (safe for DHCP/DNS);
    *             'manual' leaves the countdown bar for the user (network / wifi / firewall).
    */
-  async apply(ops: UciOp[], mode: 'auto' | 'manual' = 'auto', label = 'Cambios aplicados'): Promise<boolean> {
+  async apply(ops: UciOp[], mode: 'auto' | 'manual' = 'auto', label = 'Changes applied'): Promise<boolean> {
     if (!ops.length) return true;
     this.error = ''; this.phase = 'applying';
     const touched = new Set(ops.map((o) => o.config));
@@ -51,7 +51,7 @@ class Changes {
     this.phase = 'pending'; this.remaining = TIMEOUT;
     this.#timer && clearInterval(this.#timer);
     this.#timer = setInterval(() => {
-      if (--this.remaining <= 0) { this.#stop(); this.note = 'Se agotó el tiempo: los cambios se han revertido.'; }
+      if (--this.remaining <= 0) { this.#stop(); this.note = 'Time ran out: the changes were rolled back.'; }
     }, 1000);
   }
   #stop() { this.#timer && clearInterval(this.#timer); this.#timer = null; this.phase = 'idle'; }
@@ -61,7 +61,7 @@ class Changes {
   }
   async rollback() {
     try { await uciRollback(); } catch { /* may already be rolled back */ }
-    this.#stop(); this.note = 'Cambios revertidos.';
+    this.#stop(); this.note = 'Changes rolled back.';
   }
 }
 

@@ -40,9 +40,9 @@
   const gw = $derived(wan?.route?.find((r) => r.target === '0.0.0.0')?.nexthop);
 
   const KIND: Record<string, [string, string]> = {
-    phone: ['Móviles', '#28a5ee'], laptop: ['Portátiles', '#006fff'], desktop: ['Sobremesa', '#0a3fa8'],
-    tv: ['TV', '#f09a14'], printer: ['Impresoras', '#17a860'], iot: ['IoT', '#a24fd8'],
-    server: ['Servidores', '#e5484d'], router: ['Red', '#5d6675'], unknown: ['Otros', '#9aa3b2'],
+    phone: ['Phones', '#28a5ee'], laptop: ['Laptops', '#006fff'], desktop: ['Desktops', '#0a3fa8'],
+    tv: ['TV', '#f09a14'], printer: ['Printers', '#17a860'], iot: ['IoT', '#a24fd8'],
+    server: ['Servers', '#e5484d'], router: ['Network', '#5d6675'], unknown: ['Other', '#9aa3b2'],
   };
   const segs = $derived.by(() => {
     const m = new Map<string, number>();
@@ -59,7 +59,7 @@
 </script>
 
 <div class="page">
-  <div class="page-head"><h1>Panel</h1></div>
+  <div class="page-head"><h1>Dashboard</h1></div>
 
   <div class="layout">
     <aside class="card side">
@@ -70,16 +70,16 @@
           <p class="muted">{board?.hostname ?? ''}</p>
         </div>
       </div>
-      <div class="stat-row"><span>Tiempo activo</span><b class="num">{sys ? duration(sys.uptime) : '—'}</b></div>
-      <div class="stat-row"><span>Carga (1/5/15)</span><b class="num">{sys ? sys.load.map(load).join(' · ') : '—'}</b></div>
-      <div class="stat-row"><span>Versión</span><b>{board?.release.version ?? '—'}</b></div>
+      <div class="stat-row"><span>Uptime</span><b class="num">{sys ? duration(sys.uptime) : '—'}</b></div>
+      <div class="stat-row"><span>Load (1/5/15)</span><b class="num">{sys ? sys.load.map(load).join(' · ') : '—'}</b></div>
+      <div class="stat-row"><span>Version</span><b>{board?.release.version ?? '—'}</b></div>
       <div class="stat-row"><span>Kernel</span><b class="num">{board?.kernel ?? '—'}</b></div>
-      {#if live.stats?.cpu.model}<div class="stat-row"><span>Procesador</span><b>{live.stats.cpu.model}</b></div>{/if}
-      {#if temp !== null}<div class="stat-row"><span>Temperatura</span><b class="num t-{tempTone(temp)}">{Math.round(temp)} °C</b></div>{/if}
+      {#if live.stats?.cpu.model}<div class="stat-row"><span>Processor</span><b>{live.stats.cpu.model}</b></div>{/if}
+      {#if temp !== null}<div class="stat-row"><span>Temperature</span><b class="num t-{tempTone(temp)}">{Math.round(temp)} °C</b></div>{/if}
       <div class="meters">
         <Meter label="CPU" value={cpuNow} detail="{cpuNow}%" />
-        {#if mem}<Meter label="Memoria" value={mem.pct} detail="{bytes(mem.used)} / {bytes(mem.total)}" />{/if}
-        {#if sys}<Meter label="Almacenamiento" value={rootUsed} detail="{bytes(sys.root.used * 1024)} / {bytes(sys.root.total * 1024)}" />{/if}
+        {#if mem}<Meter label="Memory" value={mem.pct} detail="{bytes(mem.used)} / {bytes(mem.total)}" />{/if}
+        {#if sys}<Meter label="Storage" value={rootUsed} detail="{bytes(sys.root.used * 1024)} / {bytes(sys.root.total * 1024)}" />{/if}
       </div>
     </aside>
 
@@ -87,13 +87,13 @@
       <div class="card">
         <div class="card-title">
           <div>
-            <h2>Actividad de red</h2>
+            <h2>Network activity</h2>
             <p class="live num">
               <span style="color:var(--rx)"><Icon name="down" size={14} /> {now ? bps(now.rx) : '–'}</span>
               <span style="color:var(--tx)"><Icon name="up" size={14} /> {now ? bps(now.tx) : '–'}</span>
             </p>
           </div>
-          <select class="input sel" value={dev} onchange={(e) => (picked = e.currentTarget.value)} aria-label="Interfaz">
+          <select class="input sel" value={dev} onchange={(e) => (picked = e.currentTarget.value)} aria-label="Interface">
             {#each Object.keys(live.devices) as d}<option value={d}>{d}{d === wan?.l3_device ? ' (Internet)' : ''}</option>{/each}
           </select>
         </div>
@@ -102,21 +102,21 @@
 
       <div class="row3">
         <div class="card">
-          <div class="card-title"><h2>Internet</h2><span class="pill"><i class="dot" class:ok={!!wan} class:bad={!wan}></i>{wan ? 'Conectado' : 'Sin conexión'}</span></div>
+          <div class="card-title"><h2>Internet</h2><span class="pill"><i class="dot" class:ok={!!wan} class:bad={!wan}></i>{wan ? 'Connected' : 'Offline'}</span></div>
           {#if wan}
-            <div class="stat-row"><span>Interfaz</span><b>{wan.interface} · {wan.l3_device}</b></div>
-            <div class="stat-row"><span>Protocolo</span><b>{wan.proto.toUpperCase()}</b></div>
+            <div class="stat-row"><span>Interface</span><b>{wan.interface} · {wan.l3_device}</b></div>
+            <div class="stat-row"><span>Protocol</span><b>{wan.proto.toUpperCase()}</b></div>
             <div class="stat-row"><span>IP</span><b class="num">{wan['ipv4-address']?.[0] ? cidr(wan['ipv4-address'][0]) : '—'}</b></div>
-            <div class="stat-row"><span>Puerta de enlace</span><b class="num">{gw ?? '—'}</b></div>
+            <div class="stat-row"><span>Gateway</span><b class="num">{gw ?? '—'}</b></div>
             <div class="stat-row"><span>DNS</span><b class="num">{wan['dns-server']?.join(', ') ?? '—'}</b></div>
-            <div class="stat-row"><span>Conectado desde hace</span><b class="num">{wan.uptime ? duration(wan.uptime) : '—'}</b></div>
+            <div class="stat-row"><span>Connected for</span><b class="num">{wan.uptime ? duration(wan.uptime) : '—'}</b></div>
           {/if}
         </div>
 
         <div class="card">
-          <div class="card-title"><h2>Clientes</h2><a href="#/clients">Ver todos</a></div>
+          <div class="card-title"><h2>Clients</h2><a href="#/clients">View all</a></div>
           <div class="cl">
-            <Donut {segs} center={String(clients.length)} sub="dispositivos" />
+            <Donut {segs} center={String(clients.length)} sub="devices" />
             <ul>
               {#each segs.slice(0, 6) as s}
                 <li><i style:background={s.color}></i><span>{s.label}</span><b class="num">{s.value}</b></li>
@@ -126,7 +126,7 @@
         </div>
 
         <div class="card">
-          <div class="card-title"><h2>Puertos</h2></div>
+          <div class="card-title"><h2>Ports</h2></div>
           <div class="ports">
             {#each ports as p}
               <div class="pw" title="{p.name} · {p.carrier ? (p.speed ?? 'activo') : 'sin enlace'}">
@@ -136,7 +136,7 @@
             {/each}
           </div>
           <div class="legend">
-            <span><i class="g25"></i>2.5G+</span><span><i class="g1"></i>1G</span><span><i class="g0"></i>10/100</span><span><i class="off"></i>Sin enlace</span>
+            <span><i class="g25"></i>2.5G+</span><span><i class="g1"></i>1G</span><span><i class="g0"></i>10/100</span><span><i class="off"></i>No link</span>
           </div>
         </div>
       </div>
@@ -146,19 +146,19 @@
           <div class="card-title"><h2>CPU</h2><span class="big num">{cpuNow}%</span></div>
           <LineChart data={live.cpuHist} height={110} />
           {#if live.coreUse.length > 1}
-            <div class="cores">{#each live.coreUse as c, i}<div title="Núcleo {i}: {c}%"><i style:height="{Math.max(3, c)}%"></i></div>{/each}</div>
+            <div class="cores">{#each live.coreUse as c, i}<div title="Core {i}: {c}%"><i style:height="{Math.max(3, c)}%"></i></div>{/each}</div>
           {/if}
-          <p class="faint foot">{live.stats?.cpu.count ?? '—'} {live.stats?.cpu.count === 1 ? 'núcleo' : 'núcleos'} · carga {live.stats ? live.stats.load.map((v) => v.toFixed(2)).join(' · ') : '—'}</p>
+          <p class="faint foot">{live.stats?.cpu.count ?? '—'} {live.stats?.cpu.count === 1 ? 'core' : 'cores'} · load {live.stats ? live.stats.load.map((v) => v.toFixed(2)).join(' · ') : '—'}</p>
         </div>
 
         <div class="card">
-          <div class="card-title"><h2>Memoria</h2><span class="big num">{mem?.pct ?? 0}%</span></div>
+          <div class="card-title"><h2>Memory</h2><span class="big num">{mem?.pct ?? 0}%</span></div>
           <LineChart data={live.memHist} height={110} color="var(--tx)" />
           {#if mem}
-            <div class="stack" role="img" aria-label="Uso de memoria">
+            <div class="stack" role="img" aria-label="Memory usage">
               <i class="u" style:width="{(mem.used / mem.total) * 100}%"></i><i class="c" style:width="{(mem.cache / mem.total) * 100}%"></i>
             </div>
-            <div class="mleg"><span><i class="u"></i>En uso {bytes(mem.used)}</span><span><i class="c"></i>Caché {bytes(mem.cache)}</span><span><i class="f"></i>Libre {bytes(mem.free)}</span>{#if mem.swapTotal}<span class="muted">Swap {bytes(mem.swapUsed)} / {bytes(mem.swapTotal)}</span>{/if}</div>
+            <div class="mleg"><span><i class="u"></i>In use {bytes(mem.used)}</span><span><i class="c"></i>Cache {bytes(mem.cache)}</span><span><i class="f"></i>Free {bytes(mem.free)}</span>{#if mem.swapTotal}<span class="muted">Swap {bytes(mem.swapUsed)} / {bytes(mem.swapTotal)}</span>{/if}</div>
           {/if}
         </div>
       </div>
@@ -166,24 +166,24 @@
       <div class="row2">
         <div class="card">
           <div class="card-title">
-            <h2>Servicios</h2>
-            <span class="pill"><i class="dot" class:ok={!down.length} class:bad={down.length > 0}></i>{down.length ? `${down.length} con fallos` : 'Todo en marcha'}</span>
+            <h2>Services</h2>
+            <span class="pill"><i class="dot" class:ok={!down.length} class:bad={down.length > 0}></i>{down.length ? `${down.length} failing` : 'All running'}</span>
           </div>
           <ul class="svc">
             {#each services.slice(0, 8) as sv}
               <li><i class="dot" class:ok={sv.running} class:bad={isFailed(sv)}></i><span>{sv.name}</span>
-                <small class="faint">{sv.running ? 'en marcha' : sv.instances ? `fallo (código ${sv.exitCode ?? '?'})` : 'sin demonio'}</small></li>
+                <small class="faint">{sv.running ? 'running' : sv.instances ? `failed (exit ${sv.exitCode ?? '?'})` : 'no daemon'}</small></li>
             {/each}
           </ul>
-          {#if services.length > 8}<a href="#/system" class="more">Ver los {services.length} servicios</a>{/if}
+          {#if services.length > 8}<a href="#/system" class="more">View all {services.length} services</a>{/if}
         </div>
 
         <div class="card">
-          <div class="card-title"><h2>Actividad del sistema</h2></div>
-          <div class="stat-row"><span>Conexiones activas</span><b class="num">{live.stats?.conntrack.count ?? '—'}{live.stats?.conntrack.max ? ` / ${live.stats.conntrack.max.toLocaleString()}` : ''}</b></div>
-          <div class="stat-row"><span>Procesos</span><b class="num">{live.stats?.procs ?? '—'}</b></div>
-          <div class="stat-row"><span>Clientes conectados</span><b class="num">{clients.length}</b></div>
-          <div class="stat-row"><span>Hora del router</span><b class="num">{sys ? new Date(sys.localtime * 1000).toLocaleTimeString() : '—'}</b></div>
+          <div class="card-title"><h2>System activity</h2></div>
+          <div class="stat-row"><span>Active connections</span><b class="num">{live.stats?.conntrack.count ?? '—'}{live.stats?.conntrack.max ? ` / ${live.stats.conntrack.max.toLocaleString()}` : ''}</b></div>
+          <div class="stat-row"><span>Processes</span><b class="num">{live.stats?.procs ?? '—'}</b></div>
+          <div class="stat-row"><span>Connected clients</span><b class="num">{clients.length}</b></div>
+          <div class="stat-row"><span>Router time</span><b class="num">{sys ? new Date(sys.localtime * 1000).toLocaleTimeString() : '—'}</b></div>
           {#if live.stats?.temps.length}
             <div class="temps">{#each live.stats.temps.slice(0, 6) as t}<span class="pill t-{tempTone(t.c)}">{t.label.replace('coretemp ', '')} {Math.round(t.c)}°</span>{/each}</div>
           {/if}

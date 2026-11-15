@@ -48,7 +48,7 @@ function unwrap<T>(r: any): T {
 export async function login(username: string, password: string): Promise<void> {
   if (MOCK) return;
   const r = await rpc(req(1, NULL_SESSION, 'session', 'login', { username, password }));
-  if (r.error || r.result?.[0] !== 0) throw new UbusError(r.error?.code ?? r.result?.[0] ?? -1, 'Credenciales incorrectas');
+  if (r.error || r.result?.[0] !== 0) throw new UbusError(r.error?.code ?? r.result?.[0] ?? -1, 'Wrong username or password');
   store(r.result[1].ubus_rpc_session);
 }
 
