@@ -3,7 +3,82 @@
 A modern admin panel for **OpenWrt**, built as an alternative to LuCI. Its look and feel is inspired
 by professional network consoles: a compact icon rail, cards, live charts and slide-over detail panels.
 
-> Status: **v0.8.0**. Dashboards plus safe configuration of DHCP/DNS, the firewall and Wi-Fi.
+> Status: **v0.8.0**. Dashboards plus safe configuration of DHCP/DNS, the firewall and Wi-Fi, a software manager, and a signed one-line installer with self-update.
+> Jump to the [installation guide](#installation-guide).
+
+## Installation guide
+
+### Requirements
+
+- A router running **OpenWrt** (tested on 25.12). Lumen is architecture-independent: it only needs `ubus`, `rpcd`,
+  `uhttpd` (with its ubus endpoint, enabled by default), `usign` and `jsonfilter`, all part of a standard image.
+- **Root SSH** access to the router, and **working DNS + HTTPS from the router** (it downloads the release itself).
+- About 4 MB free in `/usr` and `/www`. LuCI is *not* required (and is never touched if present).
+
+### Install
+
+1. SSH into the router. Optionally check that it can reach the release server:
+
+   ```sh
+   uclient-fetch -qO- https://raw.githubusercontent.com/ENDE25/lumen-wrt/main/release/latest.json
+   ```
+
+   It should print a small JSON with the latest `"version"`.
+
+2. Run the installer:
+
+   ```sh
+   wget -qO- https://raw.githubusercontent.com/ENDE25/lumen-wrt/main/release/install.sh | sh
+   ```
+
+   It downloads the latest release, checks its **SHA-256** and its **Ed25519 signature** (with OpenWrt's own `usign`),
+   installs, starts the collector, checks that everything came up, and prints the address. If any step fails it stops
+   or rolls back without leaving a half-installed panel.
+
+3. Open `http://<router-ip>/lumen/` and sign in with the router's **root** user and password.
+
+What gets installed (the list is recorded in `/usr/share/lumen/files.list`; nothing else is ever written):
+
+| Path | What |
+|---|---|
+| `/www/lumen/` | the web panel |
+| `/usr/share/rpcd/ucode/lumen`, `/usr/share/rpcd/acl.d/lumen.json` | rpcd plugin and its permissions |
+| `/usr/libexec/lumen/` | traffic collector, package job runner, the manager (`lumen`) |
+| `/etc/init.d/lumen-history` | collector service (enabled at boot) |
+| `/etc/config/lumen` | your settings (created once, never overwritten) |
+| `/usr/bin/lumen` | symlink to the manager |
+
+### Update
+
+- **From the panel:** *System → Lumen*. A blue **Update available** badge appears in the top bar when a newer version
+  is published; press **Update**. You will be asked to sign in again (rpcd restarts).
+- **From SSH:** `lumen update` (add `--force` to reinstall the current version).
+- Before changing anything the manager backs up the installed files; if the new version does not pass its health
+  check it is **rolled back automatically**. Updates are only accepted when signed with the key pinned at install time.
+- `lumen check` and `lumen status` tell you what is installed and whether something newer exists.
+
+### Uninstall
+
+- **From the panel:** *System → Lumen → Uninstall…*. Tick *Also delete my settings* to wipe them too.
+- **From SSH:** `lumen uninstall`, or `lumen uninstall --purge` to also delete `/etc/config/lumen`.
+
+This removes the panel, the rpcd plugin, the collector service, its nftables table and the manager itself. By default
+your settings (device names and types, collector options) stay in `/etc/config/lumen` and come back if you reinstall.
+LuCI and the rest of OpenWrt are never touched.
+
+### Troubleshooting
+
+| Symptom | Likely cause / fix |
+|---|---|
+| `could not download …/latest.json` | The router has no Internet or DNS. Try `nslookup raw.githubusercontent.com`; on a default image, `dnsmasq` must be running. |
+| `checksum mismatch` | The download was corrupt or tampered with. Nothing was changed; try again. |
+| `signature check failed` | The release is not signed by the Lumen key pinned on this router. Nothing was changed. |
+| `usign is required` | `usign` is missing (it normally ships with OpenWrt). Install it with `apk add usign` / `opkg install usign`. |
+| `not enough free space` | Free about 4 MB on `/usr`. |
+| Login fails or the page is blank | Check `ubus call lumen stats` and `uci get uhttpd.main.ubus_prefix` (should be `/ubus`); `/etc/init.d/rpcd restart` often helps. |
+| System shows "deployed from source" | That copy came from `npm run deploy`, not the installer; install with the one-liner to get managed updates. |
+| Traffic → Clients is empty | Per-client accounting counts traffic *routed through* the router, and under-counts with flow offloading. |
+| Use a different release source | `uci set lumen.update.url=https://…/release && uci commit lumen` |
 
 ## How it works
 
@@ -12,7 +87,7 @@ router over **ubus JSON-RPC** (`/ubus`, the same channel LuCI uses). There is no
 uhttpd serves the files and rpcd is the API, enforcing its ACLs.
 
 - Installs into `/www/lumen/` and **coexists with LuCI**, which keeps working as a fallback.
-- ~45 KB of gzipped JS: fits routers with little flash.
+- ~115 KB of gzipped JS (plus a 360 KB vendor table loaded on demand): fits routers with little flash.
 - One batched request every 2 s feeds every page (`src/lib/live.svelte.ts`).
 - `lumen-history`, a small procd service (ucode), records per-interface byte counters; the UI reads it through `lumen.history`.
 - The same service does **per-client accounting**: it loads its own nftables table `inet lumen` (it survives
@@ -35,7 +110,7 @@ uhttpd serves the files and rpcd is the API, enforcing its ACLs.
 
 ## Pages
 
-Dashboard · Network Map · Traffic · Network · Clients · Wi-Fi · Firewall · DHCP & DNS · Software · Logs · System
+Dashboard · Network Map · Traffic · Network · Clients · Wi-Fi · Firewall · DHCP & DNS · Services · Software · Logs · System
 
 ## Development
 
@@ -46,39 +121,29 @@ LUMEN_TARGET=http://192.168.1.1 npm run dev   # against a real router (proxies /
 npm run check                                 # svelte-check + TypeScript
 ```
 
-## Install, update, uninstall
+## Publishing a new version (maintainers)
 
-On the router (SSH), one command:
-
-```sh
-wget -qO- https://raw.githubusercontent.com/ENDE25/lumen-wrt/main/release/install.sh | sh
-```
-
-It downloads the latest release, verifies its **SHA-256** and its **Ed25519 signature** (with the `usign` that ships
-with OpenWrt), installs under `/www/lumen` plus a few router-side components, enables the collector, and prints the
-address. It needs working DNS on the router. Nothing outside Lumen's own paths is ever written.
-
-- **Update**: *System → Lumen → Update* in the panel (a badge in the top bar tells you when a new version is out),
-  or `lumen update`. The previous version is backed up first and restored automatically if the new one fails its
-  health check. Updates are only accepted if signed with the key pinned at install time.
-- **Uninstall**: *System → Lumen → Uninstall…*, or `lumen uninstall` (add `--purge` to also delete your settings:
-  device names/types, collector options). LuCI and the rest of OpenWrt are never touched.
-- `lumen status` and `lumen check` show what is installed and whether something newer exists.
-- Point a router at another release source with `uci set lumen.update.url=https://…/release`.
-
-## Publishing a release (maintainers)
-
-Releases live in this repository under `release/`, so publishing is a commit:
+Releases live in this repository under `release/`, so publishing is a commit. Routers see the new `latest.json`
+and offer the update (GitHub's raw cache can delay that by a few minutes).
 
 ```sh
-node scripts/release.mjs --init-key     # once: creates ~/.config/lumen/release-key.pem (BACK IT UP) and openwrt/release-key.pub
-npm version patch --no-git-tag-version  # or edit "version" in package.json
-npm run release                         # builds, packages, signs -> release/
+# 0. once per machine: create the signing key (it stays OUTSIDE the repo: BACK IT UP)
+node scripts/release.mjs --init-key        # -> ~/.config/lumen/release-key.pem and openwrt/release-key.pub
+
+# 1. make your changes, then check them
+npm run check
+
+# 2. bump the version, build, package and sign into release/
+npm run release:patch                      # 0.8.0 -> 0.8.1   (or release:minor: 0.8.x -> 0.9.0)
+#    or edit "version" in package.json and run: npm run release
+
+# 3. publish
 git add -A && git commit -m "release x.y.z" && git push
 ```
 
-Every router sees the new `latest.json` and offers the update. The repository must be **public** (or the source
-must be reachable without credentials) for routers to download from it. The three newest versions are kept.
+Notes: use the **same key** for every release (routers pin it on first install); the three newest versions are kept
+in `release/`; add `--notes "what changed"` to `scripts/release.mjs` to show text in the panel's update dialog.
+Never commit the private key. A test source can be used with `--out DIR --base URL`.
 
 ## Developing against a router
 
@@ -94,7 +159,7 @@ This is a development shortcut: a copy deployed this way is not tracked by the i
 ```
 src/lib/         ubus client, domain API, uci + safe-apply, mock, stores (live, router, theme)
 src/components/  Sidebar, Topbar, AreaChart, LineChart, Donut, Drawer, Meter, Toggle, ApplyBar
-src/routes/      Dashboard, NetworkMap, Network, Clients, Dhcp, Logs, System, Login
+src/routes/      Dashboard, NetworkMap, Traffic, Network, Clients, Wifi, Firewall, Dhcp, Services, Software, Logs, System, Login
 src/styles/      design tokens (light/dark) and base styles
 openwrt/         rpcd plugin, ACL, collector, init script, default config, lumen-manage.sh (installer), release-key.pub
 release/         published releases: install.sh, latest.json, lumen-x.y.z.tar.gz (+ .sig)

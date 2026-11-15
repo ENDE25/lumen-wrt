@@ -11,7 +11,9 @@
     "check": "svelte-check --tsconfig ./tsconfig.json",
     "preview": "vite preview",
     "deploy": "bash scripts/deploy.sh",
-    "release": "node scripts/release.mjs"
+    "release": "node scripts/release.mjs",
+    "release:patch": "npm version patch --no-git-tag-version && npm run release",
+    "release:minor": "npm version minor --no-git-tag-version && npm run release"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^5.1.1",
