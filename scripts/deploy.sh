@@ -40,6 +40,7 @@ install_remote openwrt/rpcd/lumen            /usr/share/rpcd/ucode/lumen        
 install_remote openwrt/acl/lumen.json        /usr/share/rpcd/acl.d/lumen.json   644 rpcd_changed
 install_remote openwrt/bin/lumen-history.uc  /usr/libexec/lumen/history.uc      644 collector_changed
 install_remote openwrt/init/lumen-history    /etc/init.d/lumen-history          755 collector_changed
+install_remote openwrt/bin/lumen-pkg-job.sh /usr/libexec/lumen/pkg-job.sh 755 _unused
 install_remote openwrt/config/lumen          /etc/config/lumen                  644 _unused keep   # never overwrite user settings
 if [[ $rpcd_changed == 1 ]]; then "${SSH[@]}" "$USER_@$HOST" "/etc/init.d/rpcd restart" && echo "→ rpcd restarted (log in again)"; fi
 if [[ $collector_changed == 1 ]] || ! "${SSH[@]}" "$USER_@$HOST" "/etc/init.d/lumen-history running" >/dev/null 2>&1; then

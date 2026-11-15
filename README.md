@@ -3,7 +3,7 @@
 A modern admin panel for **OpenWrt**, built as an alternative to LuCI. Its look and feel is inspired
 by professional network consoles: a compact icon rail, cards, live charts and slide-over detail panels.
 
-> Status: **v0.7 (in development)**. Dashboards plus safe configuration of DHCP/DNS, the firewall and Wi-Fi.
+> Status: **v0.8 (in development)**. Dashboards plus safe configuration of DHCP/DNS, the firewall and Wi-Fi.
 
 ## How it works
 
@@ -22,6 +22,11 @@ uhttpd serves the files and rpcd is the API, enforcing its ACLs.
   bridge, and it under-counts when firewall **flow offloading** is enabled (the UI warns about it).
   Custom device names and types live in the same file as `config client` sections (`mac`, `name`, `kind`).
   `/etc/config/lumen`: `interval`, `persist`, `clients` (0 disables it), `count_local` (also count traffic to the router itself).
+- **Software** page: the rpcd plugin wraps `apk` (search runs on the router because the catalogue has ~11 000
+  packages). Install/remove/upgrade/update run as a detached job (`openwrt/bin/lumen-pkg-job.sh`) so they survive an
+  rpcd restart, and the UI follows the log. Names are validated, only four verbs are accepted, and essential
+  packages (busybox, rpcd, uhttpd, procd, ...) cannot be removed. The router needs working DNS to reach the
+  repositories. The firmware check is done by the browser (`downloads.openwrt.org/.versions.json`), not the router.
 - A tiny rpcd ucode plugin (`openwrt/rpcd/lumen`) adds what stock ubus lacks: bridge forwarding
   table (which port a client sits behind) and container-correct host stats from `/proc`.
   It must never call rpcd's own objects (rpcd is single-threaded and would deadlock).
@@ -30,7 +35,7 @@ uhttpd serves the files and rpcd is the API, enforcing its ACLs.
 
 ## Pages
 
-Dashboard · Network Map · Traffic · Network · Clients · Wi-Fi · Firewall · DHCP & DNS · Logs · System
+Dashboard · Network Map · Traffic · Network · Clients · Wi-Fi · Firewall · DHCP & DNS · Software · Logs · System
 
 ## Development
 
@@ -73,7 +78,8 @@ scripts/         deploy.sh
 - [x] Vendor detection from the MAC prefix (IEEE MA-L/MA-M/MA-S, 360 KB gzipped, loaded on demand) with brand logos and better category icons; private/randomised MACs are labelled as such
 - [x] Custom device names and device types tied to the MAC (stored on the router in `/etc/config/lumen`, shown everywhere)
 - [ ] Installable package (`apk`/`opkg`) with its own rpcd ACL
-- [ ] Package management and firmware upgrades
+- [x] Package management (apk): list/search/install/remove/upgrade with a dry-run preview and live log, detached jobs, core packages protected; firmware release check against downloads.openwrt.org
+- [ ] Flashing firmware from the panel (sysupgrade)
 - [ ] Internationalisation (English only for now)
 
 ## Vendor detection and logos

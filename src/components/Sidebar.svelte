@@ -13,6 +13,7 @@
     { id: 'wifi', icon: 'wifi', label: 'Wi-Fi' },
     { id: 'firewall', icon: 'shield', label: 'Firewall' },
     { id: 'dhcp', icon: 'dns', label: 'DHCP & DNS' },
+    { id: 'software', icon: 'package', label: 'Software' },
     { id: 'logs', icon: 'logs', label: 'Logs' },
     { id: 'system', icon: 'settings', label: 'System' },
   ];

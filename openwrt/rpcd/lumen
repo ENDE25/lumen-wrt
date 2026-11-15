@@ -4,7 +4,7 @@
 // threaded and would deadlock on itself. Wifi data is fetched by the frontend instead.
 'use strict';
 
-import { readfile, lsdir, stat } from 'fs';
+import { readfile, lsdir, stat, popen } from 'fs';
 import { cursor } from 'uci';
 
 const HISTORY_FILE = '/tmp/lumen/history.json';
@@ -186,7 +186,105 @@ function client_series(mac, range) {
 	return { now, step: 3600, t: slice(d.hour.t, from), rx: slice(d.hour.d[mac].rx, from), tx: slice(d.hour.d[mac].tx, from) };
 }
 
+// ---- package management (apk). Short queries run inline; install/remove/upgrade/update run as a detached job
+// (openwrt/bin/lumen-pkg-job.sh) so they survive an rpcd restart and can be followed through pkg_status.
+const PKG_DIR = '/tmp/lumen/pkg';
+const PKG_NAME = /^[A-Za-z0-9][A-Za-z0-9._+-]*$/;
+// Removing these would brick the router or the panel itself.
+const PKG_CORE = /^(base-files|busybox|libc|libgcc1?|apk-.*|procd.*|ubus.*|ubox|libubox.*|libubus.*|libblobmsg.*|libjson-script.*|jshn|netifd|uhttpd.*|rpcd.*|dropbear|fstools|kernel|mtd|openwrt-keyring|uci|libuci.*|logd|firewall4|ucode.*|libucode.*)$/;
+
+function apk_query(args) {
+	let p = popen('apk query --format json ' + args + ' 2>/dev/null', 'r');
+	if (!p) return [];
+	let txt = p.read('all');
+	p.close();
+	if (!txt || txt == '') return [];
+	return json(txt) ?? [];
+}
+
+function run_text(cmd) {
+	let p = popen(cmd + ' 2>&1', 'r');
+	if (!p) return '';
+	let t = p.read('all');
+	p.close();
+	return t ?? '';
+}
+
+function split_pkgs(str) {
+	let out = [];
+	for (let n in split(trim(str ?? ''), /\s+/)) if (n != '') push(out, n);
+	return out;
+}
+
+function valid_pkgs(list) {
+	for (let n in list) if (!match(n, PKG_NAME)) return false;
+	return true;
+}
+
+function pkg_installed() {
+	let out = [];
+	for (let x in apk_query("--fields name,version,description,installed-size,origin --installed --from system '*'"))
+		push(out, { name: x.name, version: x.version, description: x.description, size: x['installed-size'], origin: x.origin, core: !!match(x.name, PKG_CORE) });
+	return sort(out, (a, b) => a.name < b.name ? -1 : a.name > b.name ? 1 : 0);
+}
+
+function pkg_upgradable() {
+	let inst = {};
+	for (let x in apk_query("--fields name,version --installed --from system '*'")) inst[x.name] = x.version;
+	let out = [];
+	for (let x in apk_query("--fields name,version --upgradable '*'"))
+		push(out, { name: x.name, from: inst[x.name], to: x.version });
+	return out;
+}
+
+function pkg_search(q) {
+	if (!match(q ?? '', /^[A-Za-z0-9._+-]{2,40}$/)) return { error: 'Use at least 2 letters, digits or . _ + -' };
+	let all = apk_query(`--fields name,version,description,installed-size --available '*${q}*'`);
+	let rank = (n) => n == q ? 0 : index(n, q) == 0 ? 1 : 2;
+	let res = sort(all, (a, b) => rank(a.name) - rank(b.name) || length(a.name) - length(b.name) || (a.name < b.name ? -1 : 1));
+	let out = [];
+	for (let x in slice(res, 0, 100)) push(out, { name: x.name, version: x.version, description: x.description, size: x['installed-size'] });
+	return { results: out, total: length(all) };
+}
+
+/** What apk would do, without doing it. */
+function pkg_plan(action, pkgsStr) {
+	if (!(action in ['add', 'del', 'upgrade'])) return { error: 'unsupported action' };
+	let pk = split_pkgs(pkgsStr);
+	if (!valid_pkgs(pk) || (action != 'upgrade' && !length(pk))) return { error: 'invalid package name' };
+	if (action == 'del') for (let n in pk) if (match(n, PKG_CORE)) return { error: `${n} is a core system package and cannot be removed here` };
+	return { text: trim(run_text(`apk ${action} --simulate ${join(' ', pk)}`)) };
+}
+
+function pkg_status() {
+	let rd = (f) => trim(readfile(`${PKG_DIR}/${f}`) ?? '');
+	let state = rd('state');
+	if (state == '') return { state: 'idle' };
+	let log = readfile(`${PKG_DIR}/log`) ?? '';
+	if (length(log) > 20000) log = '…' + substr(log, length(log) - 20000);
+	return { state, cmd: rd('cmd'), code: rd('code') == '' ? null : int(rd('code')), started: int(rd('started') || 0), ended: int(rd('ended') || 0), log };
+}
+
+function pkg_run(action, pkgsStr) {
+	if (!(action in ['update', 'upgrade', 'add', 'del'])) return { error: 'unsupported action' };
+	let pk = split_pkgs(pkgsStr);
+	if (!valid_pkgs(pk) || ((action == 'add' || action == 'del') && !length(pk))) return { error: 'invalid package name' };
+	if (action == 'del') for (let n in pk) if (match(n, PKG_CORE)) return { error: `${n} is a core system package and cannot be removed here` };
+	let st = pkg_status();
+	// a job left "running" for over 30 minutes is treated as dead
+	if (st.state == 'running' && time() - st.started < 1800) return { error: 'another package operation is still running' };
+	system(`setsid sh /usr/libexec/lumen/pkg-job.sh ${action} ${join(' ', pk)} </dev/null >/dev/null 2>&1 &`);
+	return { started: true };
+}
+
 const methods = {
+	pkg_installed: { call: function(request) { return { packages: pkg_installed() }; } },
+	pkg_upgradable: { call: function(request) { return { packages: pkg_upgradable() }; } },
+	pkg_search: { args: { q: 'q' }, call: function(request) { return pkg_search(request.args?.q); } },
+	pkg_plan: { args: { action: 'action', pkgs: 'pkgs' }, call: function(request) { return pkg_plan(request.args?.action, request.args?.pkgs); } },
+	pkg_status: { call: function(request) { return pkg_status(); } },
+	pkg_run: { args: { action: 'action', pkgs: 'pkgs' }, call: function(request) { return pkg_run(request.args?.action, request.args?.pkgs); } },
+
 	clients: {
 		args: { range: 'range' },
 		call: function(request) { return clients(request.args?.range); }

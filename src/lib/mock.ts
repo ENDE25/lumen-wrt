@@ -99,6 +99,52 @@ const UCI: Record<string, Record<string, any>> = {
   },
 };
 
+
+// ---- fake package manager for demo mode
+interface MPkg { name: string; version: string; description: string; size: number; core?: boolean }
+const CATALOG: MPkg[] = [
+  ['htop', '3.5.3-r1', 'Htop is an ncursed-based process viewer', 295391], ['nano', '8.4-r1', 'Nano is a small, simple text editor', 410220], ['wireguard-tools', '1.0.20250521-r1', 'WireGuard userspace control program', 61200],
+  ['adblock', '4.4.2-r1', 'DNS based ad/abuse domain blocking', 188000], ['banip', '1.5.1-r1', 'IP address blocking based on nftables sets', 99000], ['iperf3', '3.19.1-r1', 'Internet Protocol bandwidth measuring tool', 102300],
+  ['tcpdump', '4.99.5-r1', 'Network sniffer', 612000], ['mtr', '0.96-r1', 'Full screen ncurses traceroute tool', 98000], ['curl', '8.14.1-r1', 'A client-side URL transfer utility', 345000],
+  ['luci-app-sqm', '26.317.52279-r1', 'SQM Scripts - Smart Queue Management', 41000], ['sqm-scripts', '1.6.0-r1', 'SQM scripts: smart queue management', 24000], ['tailscale', '1.84.2-r1', 'Zero config VPN', 21400000],
+  ['collectd', '5.12.0-r1', 'System statistics collection daemon', 380000], ['nlbwmon', '2024.12.21-r1', 'Conntrack based network traffic monitor', 71000], ['usbutils', '018-r1', 'USB device listing tools', 120000],
+  ['kmod-usb-storage', '6.12.112-r1', 'Kernel support for USB mass storage devices', 33000], ['block-mount', '2025.10.01-r1', 'Block device mounting and checking', 52000], ['samba4-server', '4.22.1-r1', 'Samba 4 file server', 8300000],
+  ['vim', '9.1.1387-r1', 'Vi IMproved', 1450000], ['screen', '4.9.1-r1', 'Full-screen window manager', 210000], ['openvpn-openssl', '2.6.14-r1', 'Open source VPN solution using OpenSSL', 880000],
+].map(([name, version, description, size]) => ({ name, version, description, size }) as MPkg);
+let mInstalled: MPkg[] = [
+  ['base-files', '1718~981c978eff', 'This package contains a base filesystem and system scripts for OpenWrt.', 179202, true], ['busybox', '1.37.0-r4', 'The Swiss Army Knife of embedded Linux', 580000, true], ['dnsmasq', '2.93-r1', 'DNS and DHCP server', 340000],
+  ['dropbear', '2025.88-r1', 'Small SSH server and client', 190000, true], ['firewall4', '2025.03.17-r2', 'OpenWrt nftables firewall', 160000, true], ['uhttpd', '2026.08.24-r1', 'Tiny HTTP server', 40000, true],
+  ['rpcd', '2026.10.04-r1', 'OpenWrt ubus RPC backend server', 48000, true], ['odhcpd', '2026.01.12-r1', 'OpenWrt DHCP/DHCPv6 server', 120000], ['luci-base', '26.288.56989-r1', 'LuCI core libraries', 450000],
+  ['ca-bundle', '20260816-r1', 'System CA certificates', 140000], ['wpad-basic-mbedtls', '2025.08.26-r1', 'IEEE 802.1x Authenticator/Supplicant', 520000], ['jshn', '2026.06.19-r1', 'Helper utility for parsing JSON', 20000, true],
+  ['nftables-json', '1.1.6-r1', 'Netfilter nftables userspace utility', 530000], ['ethtool', '6.14-r1', 'Ethernet driver settings utility', 210000], ['logd', '2025.01.10-r1', 'OpenWrt system log implementation', 30000, true],
+].map(([name, version, description, size, core]) => ({ name, version, description, size, core }) as MPkg);
+let mUpg: { name: string; from?: string; to: string }[] = [
+  { name: 'ca-bundle', from: '20260816-r1', to: '20260816-r2' }, { name: 'dnsmasq', from: '2.93-r1', to: '2.93-r2' }, { name: 'luci-base', from: '26.288.56989-r1', to: '26.317.52279-r1' },
+  { name: 'wpad-basic-mbedtls', from: '2025.08.26-r1', to: '2025.11.04-r1' }, { name: 'ethtool', from: '6.14-r1', to: '6.15-r1' },
+];
+let mJob: any = { state: 'idle' };
+
+function mockPlan(action: string, pkgs: string[]): string {
+  if (action === 'add') return pkgs.flatMap((p, i) => [`(${i + 1}/${pkgs.length + 1}) Installing ${p} (${CATALOG.find((c) => c.name === p)?.version ?? '1.0-r1'})`]).concat(['(…) Installing required libraries', 'OK: 12.4 MiB in 139 packages']).join('\n');
+  if (action === 'del') return pkgs.map((p, i) => `(${i + 1}/${pkgs.length}) Purging ${p}`).concat([`OK: 11.2 MiB in 133 packages`]).join('\n');
+  const list = pkgs.length ? mUpg.filter((u) => pkgs.includes(u.name)) : mUpg;
+  return list.map((u, i) => `(${i + 1}/${list.length}) Upgrading ${u.name} (${u.from} -> ${u.to})`).concat(['OK: 11.3 MiB in 136 packages']).join('\n');
+}
+
+function mockRunJob(action: string, pkgs: string[]) {
+  const steps = action === 'update'
+    ? ['fetch https://downloads.openwrt.org/releases/25.12.6/targets/x86/64/packages/packages.adb', 'fetch https://downloads.openwrt.org/releases/25.12.6/packages/x86_64/base/packages.adb', 'fetch https://downloads.openwrt.org/releases/25.12.6/packages/x86_64/luci/packages.adb', 'OK: 11244 distinct packages available']
+    : mockPlan(action, pkgs).split('\n');
+  mJob = { state: 'running', cmd: `apk ${action} ${pkgs.join(' ')}`.trim(), code: null, started: Math.floor(Date.now() / 1000), log: '' };
+  steps.forEach((line, i) => setTimeout(() => { mJob.log += line + '\n'; }, 700 * (i + 1)));
+  setTimeout(() => {
+    if (action === 'add') pkgs.forEach((n) => { const c = CATALOG.find((x) => x.name === n); if (c && !mInstalled.some((x) => x.name === n)) mInstalled.push({ ...c }); });
+    if (action === 'del') mInstalled = mInstalled.filter((x) => !pkgs.includes(x.name));
+    if (action === 'upgrade') { mUpg.filter((u) => !pkgs.length || pkgs.includes(u.name)).forEach((u) => { const i = mInstalled.find((x) => x.name === u.name); if (i) i.version = u.to; }); mUpg = pkgs.length ? mUpg.filter((u) => !pkgs.includes(u.name)) : []; }
+    mJob = { ...mJob, state: 'done', code: 0, ended: Math.floor(Date.now() / 1000) };
+  }, 700 * (steps.length + 1) + 300);
+}
+
 export async function mockCall(obj: string, method: string, args: any = {}): Promise<any> {
   await new Promise((r) => setTimeout(r, 40 + Math.random() * 60));
   tick();
@@ -157,6 +203,24 @@ export async function mockCall(obj: string, method: string, args: any = {}): Pro
       return { results: HOSTS.filter(([, n]) => WIFI[n]?.[0] === args.device).map(([mac, n]) => ({
         mac, signal: WIFI[n][1], noise: -95, rx: { rate: args.device === 'phy0-ap0' ? 866000 : 144000 }, tx: { rate: args.device === 'phy0-ap0' ? 780000 : 130000 },
       })) };
+    case 'lumen.pkg_installed': return { packages: [...mInstalled].sort((a, b) => a.name.localeCompare(b.name)).map((p) => ({ ...p, core: !!p.core })) };
+    case 'lumen.pkg_upgradable': return { packages: mUpg };
+    case 'lumen.pkg_search': {
+      const q = String(args.q ?? '').toLowerCase();
+      if (q.length < 2) return { error: 'Use at least 2 letters, digits or . _ + -' };
+      const all = CATALOG.filter((c) => c.name.includes(q));
+      return { results: all, total: all.length };
+    }
+    case 'lumen.pkg_plan': {
+      const pk = String(args.pkgs ?? '').split(/\s+/).filter(Boolean);
+      if (args.action === 'del' && pk.some((n) => mInstalled.find((i) => i.name === n)?.core)) return { error: `${pk[0]} is a core system package and cannot be removed here` };
+      return { text: mockPlan(args.action, pk) };
+    }
+    case 'lumen.pkg_run': {
+      if (mJob.state === 'running') return { error: 'another package operation is still running' };
+      mockRunJob(args.action, String(args.pkgs ?? '').split(/\s+/).filter(Boolean)); return { started: true };
+    }
+    case 'lumen.pkg_status': return mJob;
     case 'lumen.clients': {
       const mult = ({ '24h': 1, '7d': 6.2, '30d': 24 } as Record<string, number>)[args.range] ?? 1;
       const base: Record<string, number> = { 'A4:83:E7:11:22:01': 3.2, 'F0:18:98:0B:3C:02': 7.5, 'DC:A6:32:4F:19:03': 1.1, '3C:5A:B4:77:AA:04': 5.1, '00:11:32:AB:CD:05': 11.8, 'EC:B1:D7:90:12:06': 0.05, 'C8:2B:96:33:44:07': 0.02, '00:00:F0:AA:BB:08': 2.4, '9C:B6:D0:12:34:09': 14.6, '50:DE:06:55:66:0A': 6.3, '00:06:5B:99:88:0C': 1.9, 'F6:3A:11:55:77:0D': 2.8 };

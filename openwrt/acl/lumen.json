@@ -2,11 +2,11 @@
 	"lumen": {
 		"description": "Lumen panel: topology data and safe-apply of UCI changes",
 		"read": {
-			"ubus": { "lumen": [ "topology", "stats", "history", "clients", "client" ], "uci": [ "configs" ], "iwinfo": [ "phyname", "freqlist", "countrylist", "txpowerlist" ] },
+			"ubus": { "lumen": [ "topology", "stats", "history", "clients", "client", "pkg_installed", "pkg_upgradable", "pkg_search", "pkg_plan", "pkg_status" ], "uci": [ "configs" ], "iwinfo": [ "phyname", "freqlist", "countrylist", "txpowerlist" ] },
 			"uci": [ "lumen" ]
 		},
 		"write": {
-			"ubus": { "uci": [ "revert", "rollback", "changes" ] },
+			"ubus": { "uci": [ "revert", "rollback", "changes" ], "lumen": [ "pkg_run" ] },
 			"uci": [ "lumen" ]
 		}
 	}
