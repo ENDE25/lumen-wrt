@@ -1,25 +1,27 @@
 import { batch, call } from './ubus';
-import type { Board, Client, ClientKind, ClientLink, HostHint, Lease, NetDevice, NetInterface, NetworkMap, SystemInfo, WifiIface } from './types';
+import type { Service, Stats, Board, Client, ClientKind, ClientLink, HostHint, Lease, NetDevice, NetInterface, NetworkMap, SystemInfo, WifiIface } from './types';
 
 export const getBoard = () => call<Board>('system', 'board');
 export const getSystem = () => call<SystemInfo>('system', 'info');
 
 export interface Snapshot {
   system: SystemInfo | null;
+  stats: Stats | null;
   devices: Record<string, NetDevice>;
   interfaces: NetInterface[];
 }
 
 /** Everything the dashboard polls, in one HTTP request. */
 export async function getSnapshot(): Promise<Snapshot> {
-  const [system, devs, ifs] = await batch([
+  const [system, devs, ifs, stats] = await batch([
     ['system', 'info'],
     ['network.device', 'status'],
     ['network.interface', 'dump'],
+    ['lumen', 'stats'],
   ]);
   const devices: Record<string, NetDevice> = {};
   for (const [name, d] of Object.entries<any>(devs ?? {})) devices[name] = { ...d, name };
-  return { system, devices, interfaces: ifs?.interface ?? [] };
+  return { system, stats, devices, interfaces: ifs?.interface ?? [] };
 }
 
 export function kindOf(name: string): ClientKind {
@@ -110,3 +112,15 @@ export async function getLog(): Promise<LogLine[]> {
 }
 
 export const reboot = () => call('system', 'reboot');
+
+/** failed first (has instances, none running), then running, then services without a daemon */
+const rank = (s: Service) => (s.running ? 1 : s.instances ? 0 : 2);
+export const isFailed = (s: Service) => !s.running && s.instances > 0;
+
+export async function getServices(): Promise<Service[]> {
+  const r = await call<Record<string, { instances?: Record<string, { running?: boolean; exit_code?: number }> }>>('service', 'list');
+  return Object.entries(r ?? {}).map(([name, v]) => {
+    const inst = Object.values(v.instances ?? {});
+    return { name, instances: inst.length, running: inst.some((i) => i.running), exitCode: inst.find((i) => !i.running)?.exit_code };
+  }).sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name));
+}

@@ -13,6 +13,7 @@ const counters: Record<string, { rx: number; tx: number; base: [number, number] 
   lan3: { rx: 0, tx: 0, base: [0, 0] },
 };
 let last = Date.now();
+let cpuTick = 5e6;
 function tick() {
   const dt = (Date.now() - last) / 1000; last = Date.now();
   const burst = 1 + 0.9 * Math.sin(Date.now() / 7000) + Math.random() * 0.8;
@@ -133,6 +134,27 @@ export async function mockCall(obj: string, method: string, args: any = {}): Pro
       return { results: HOSTS.filter(([, n]) => WIFI[n]?.[0] === args.device).map(([mac, n]) => ({
         mac, signal: WIFI[n][1], noise: -95, rx: { rate: args.device === 'phy0-ap0' ? 866000 : 144000 }, tx: { rate: args.device === 'phy0-ap0' ? 780000 : 130000 },
       })) };
+    case 'lumen.stats': {
+      const t = Date.now() / 1000;
+      cpuTick += 1000 * (2 + Math.sin(t / 9) + Math.random());
+      const cores = [0, 1, 2, 3].map((i) => ({ busy: Math.floor(cpuTick * (0.7 + i * 0.12)), total: Math.floor(cpuTick * 2.4 + 1e6 + t * 100) }));
+      const total = cores.reduce((a, c) => ({ busy: a.busy + c.busy, total: a.total + c.total }), { busy: 0, total: 0 });
+      const memTotal = 1073741824, avail = memTotal * (0.58 + 0.04 * Math.sin(t / 25));
+      return {
+        mem: { MemTotal: memTotal, MemFree: avail * 0.45, MemAvailable: avail, Buffers: 0, Cached: avail * 0.5, SwapTotal: 0, SwapFree: 0, Shmem: 1e6, SReclaimable: 8e6 },
+        cpu: { total, cores, model: 'ARMv8 Processor rev 4 (v8l)', count: 4 },
+        temps: [{ label: 'cpu-thermal', c: 52 + 3 * Math.sin(t / 30) }, { label: 'wifi-phy0', c: 58 }],
+        conntrack: { count: 1840 + Math.floor(Math.random() * 60), max: 65536 }, procs: 112, load: [0.62, 0.48, 0.41],
+      };
+    }
+    case 'service.list':
+      return {
+        dnsmasq: { instances: { cfg01411c: { running: true } } }, dropbear: { instances: { instance1: { running: true } } },
+        firewall: { instances: { main: { running: true } } }, odhcpd: { instances: { odhcpd: { running: true } } },
+        uhttpd: { instances: { main: { running: true } } }, rpcd: { instances: { rpcd: { running: true } } },
+        sqm: { instances: { wan: { running: false, exit_code: 1 } } }, sysntpd: { instances: { instance1: { running: true } } },
+        cron: {}, hostapd: { instances: { hostapd: { running: true } } }, odhcp6c: { instances: { wan6: { running: true } } },
+      };
     case 'log.read':
       return { log: LOG.map((l, i) => ({ msg: l, id: i, priority: 6, source: 3, time: Date.now() - (LOG.length - i) * 60000 })) };
     case 'system.reboot':

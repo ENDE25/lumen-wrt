@@ -108,3 +108,15 @@ export interface Client {
 export type ClientKind = 'phone' | 'laptop' | 'desktop' | 'tv' | 'printer' | 'iot' | 'server' | 'router' | 'unknown';
 
 export interface RatePoint { t: number; rx: number; tx: number } // bytes/s
+
+export interface CpuTimes { busy: number; total: number }
+export interface Stats {
+  mem: { MemTotal: number; MemFree: number; MemAvailable: number; Buffers: number; Cached: number; SwapTotal: number; SwapFree: number; Shmem: number; SReclaimable: number };
+  cpu: { total: CpuTimes | null; cores: CpuTimes[]; model: string | null; count: number };
+  temps: { label: string; c: number }[];
+  conntrack: { count: number | null; max: number | null };
+  procs: number;
+  load: [number, number, number];
+}
+
+export interface Service { name: string; running: boolean; instances: number; exitCode?: number }

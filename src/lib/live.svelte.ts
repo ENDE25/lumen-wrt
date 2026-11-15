@@ -1,12 +1,16 @@
 // Single shared poller: one batched request every INTERVAL ms feeds every page.
 import { getSnapshot, type Snapshot } from './api';
-import type { NetDevice, NetInterface, RatePoint, SystemInfo } from './types';
+import type { NetDevice, NetInterface, RatePoint, Stats, SystemInfo } from './types';
 
 const INTERVAL = 2000;
 const HISTORY = 150; // points kept per device (~5 min)
 
 class Live {
   system = $state<SystemInfo | null>(null);
+  stats = $state<Stats | null>(null);
+  cpuHist = $state<number[]>([]);
+  coreUse = $state<number[]>([]);
+  memHist = $state<number[]>([]);
   devices = $state<Record<string, NetDevice>>({});
   interfaces = $state<NetInterface[]>([]);
   history = $state<Record<string, RatePoint[]>>({});
@@ -15,6 +19,7 @@ class Live {
 
   #timer: ReturnType<typeof setTimeout> | null = null;
   #prev: Record<string, { t: number; rx: number; tx: number }> = {};
+  #cpuPrev: { busy: number; total: number }[] = [];
   #users = 0;
 
   /** Page components call start() on mount and the returned fn on destroy. */
@@ -43,10 +48,27 @@ class Live {
       }
       this.#prev[name] = { t: now, rx, tx };
     }
+    if (s.stats) this.#applyStats(s.stats);
     this.system = s.system;
     this.devices = s.devices;
     this.interfaces = s.interfaces;
     this.loaded = true;
+  }
+
+  #applyStats(st: Stats) {
+    const now = [...(st.cpu.total ? [st.cpu.total] : []), ...st.cpu.cores];
+    const pct = (a: { busy: number; total: number }, b?: { busy: number; total: number }) =>
+      b && a.total > b.total ? Math.round(((a.busy - b.busy) / (a.total - b.total)) * 100) : 0;
+    if (this.#cpuPrev.length === now.length && now.length) {
+      this.cpuHist.push(pct(now[0], this.#cpuPrev[0]));
+      if (this.cpuHist.length > HISTORY) this.cpuHist.shift();
+      this.coreUse = now.slice(1).map((c, i) => pct(c, this.#cpuPrev[i + 1]));
+    }
+    this.#cpuPrev = now;
+    const used = st.mem.MemTotal ? ((st.mem.MemTotal - st.mem.MemAvailable) / st.mem.MemTotal) * 100 : 0;
+    this.memHist.push(Math.round(used * 10) / 10);
+    if (this.memHist.length > HISTORY) this.memHist.shift();
+    this.stats = st;
   }
 
   /** Interface carrying the default route = "Internet". Falls back to first up interface. */

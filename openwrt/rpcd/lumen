@@ -57,7 +57,80 @@ function read_fdb(br) {
 	return out;
 }
 
+// ---- host stats. /proc is virtualised (lxcfs) inside containers, unlike the sysinfo() syscall
+// behind `ubus call system info`, which reports the *host* in LXC. So read /proc directly.
+function int_file(path) {
+	let t = trim(readfile(path));
+	return t == '' ? null : int(t);
+}
+
+const KEEP = { MemTotal: 1, MemFree: 1, MemAvailable: 1, Buffers: 1, Cached: 1, SReclaimable: 1, Shmem: 1, SwapTotal: 1, SwapFree: 1 };
+
+function read_meminfo() {
+	let out = {};
+	for (let line in split(readfile('/proc/meminfo') ?? '', '\n')) {
+		let m = match(line, /^([A-Za-z_()0-9]+):\s+([0-9]+)/);
+		if (m && m[1] in KEEP) out[m[1]] = int(m[2]) * 1024;
+	}
+	return out;
+}
+
+function read_cpu() {
+	let cores = [], total = null;
+	for (let line in split(readfile('/proc/stat') ?? '', '\n')) {
+		let m = match(line, /^cpu([0-9]*)\s+(.*)$/);
+		if (!m) continue;
+		let f = map(split(trim(m[2]), /\s+/), (x) => int(x));
+		let sum = 0;
+		for (let i = 0; i < 8 && i < length(f); i++) sum += f[i];
+		let e = { busy: sum - f[3] - (f[4] ?? 0), total: sum };
+		if (m[1] == '') total = e; else push(cores, e);
+	}
+	let model = null, count = 0;
+	for (let line in split(readfile('/proc/cpuinfo') ?? '', '\n')) {
+		if (match(line, /^processor\s*:/)) count++;
+		let m = match(line, /^(model name|Hardware|system type|cpu model)\s*:\s*(.+)$/);
+		if (m && !model) model = trim(m[2]);
+	}
+	return { total, cores, model, count };
+}
+
+function read_temps() {
+	let out = [];
+	for (let z in lsdir('/sys/class/thermal') ?? []) {
+		if (!match(z, /^thermal_zone/)) continue;
+		let t = int_file(`/sys/class/thermal/${z}/temp`);
+		if (t != null) push(out, { label: trim(readfile(`/sys/class/thermal/${z}/type`)) || z, c: t / 1000 });
+	}
+	for (let h in lsdir('/sys/class/hwmon') ?? []) {
+		let base = `/sys/class/hwmon/${h}`, name = trim(readfile(`${base}/name`)) || h;
+		for (let f in lsdir(base) ?? []) {
+			let m = match(f, /^temp([0-9]+)_input$/);
+			if (!m) continue;
+			let t = int_file(`${base}/${f}`);
+			let lbl = trim(readfile(`${base}/temp${m[1]}_label`));
+			if (t != null) push(out, { label: lbl != '' ? `${name} ${lbl}` : name, c: t / 1000 });
+		}
+	}
+	return out;
+}
+
 const methods = {
+	stats: {
+		call: function(request) {
+			let la = split(trim(readfile('/proc/loadavg') ?? ''), ' ');
+			// /proc/loadavg totals can be host-wide in containers; count our own pid namespace instead
+			let nproc = length(filter(lsdir('/proc') ?? [], (d) => match(d, /^[0-9]+$/)));
+			return {
+				mem: read_meminfo(),
+				cpu: read_cpu(),
+				temps: read_temps(),
+				conntrack: { count: int_file('/proc/sys/net/netfilter/nf_conntrack_count'), max: int_file('/proc/sys/net/netfilter/nf_conntrack_max') },
+				procs: nproc,
+				load: [+la[0], +la[1], +la[2]],
+			};
+		}
+	},
 	topology: {
 		call: function(request) {
 			let bridges = read_bridges(), fdb = {};
