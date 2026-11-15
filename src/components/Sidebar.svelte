@@ -7,6 +7,7 @@
   const items = [
     { id: 'dashboard', icon: 'dashboard', label: 'Dashboard' },
     { id: 'map', icon: 'network', label: 'Network Map' },
+    { id: 'traffic', icon: 'stats', label: 'Traffic' },
     { id: 'network', icon: 'devices', label: 'Network' },
     { id: 'clients', icon: 'clients', label: 'Clients' },
     { id: 'wifi', icon: 'wifi', label: 'Wi-Fi' },

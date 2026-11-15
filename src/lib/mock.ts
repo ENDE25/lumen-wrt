@@ -152,6 +152,25 @@ export async function mockCall(obj: string, method: string, args: any = {}): Pro
       return { results: HOSTS.filter(([, n]) => WIFI[n]?.[0] === args.device).map(([mac, n]) => ({
         mac, signal: WIFI[n][1], noise: -95, rx: { rate: args.device === 'phy0-ap0' ? 866000 : 144000 }, tx: { rate: args.device === 'phy0-ap0' ? 780000 : 130000 },
       })) };
+    case 'lumen.history': {
+      const span = ({ '1h': 3600, '24h': 86400, '7d': 604800, '30d': 2592000, '90d': 7776000 } as Record<string, number>)[args.range] ?? 86400;
+      const fine = span <= 604800, step = fine ? 300 : 3600, now = Math.floor(Date.now() / 1000);
+      const n = Math.floor(span / step), t: number[] = [], rx: Record<string, number[]> = {}, tx: Record<string, number[]> = {};
+      const devs: [string, number, number][] = [['eth0', 4.2e6, 6e5], ['br-lan', 5e5, 4.1e6], ['phy0-ap0', 2e5, 2.6e6], ['phy1-ap0', 1e5, 1.2e6], ['lan1', 1.5e5, 9e5]];
+      for (const [d] of devs) { rx[d] = []; tx[d] = []; }
+      for (let i = 0; i < n; i++) {
+        const ts = now - (n - i) * step; t.push(ts);
+        const hour = ((ts % 86400) / 3600 + 1) % 24;                      // pseudo local hour
+        const day = 0.25 + 0.75 * Math.max(0, Math.sin(((hour - 7) / 16) * Math.PI)); // quiet at night, busy evenings
+        const evening = hour > 19 && hour < 23 ? 1.8 : 1;
+        const weekend = new Date(ts * 1000).getDay() % 6 === 0 ? 1.4 : 1;
+        for (const [d, r, w] of devs) {
+          const k = day * evening * weekend * (0.6 + Math.random() * 0.8);
+          rx[d].push(Math.round(r * k * step)); tx[d].push(Math.round(w * k * step));
+        }
+      }
+      return { running: true, step, tier: fine ? 'fine' : 'hour', now, since: t[0], t, rx, tx };
+    }
     case 'lumen.stats': {
       const t = Date.now() / 1000;
       cpuTick += 1000 * (2 + Math.sin(t / 9) + Math.random());

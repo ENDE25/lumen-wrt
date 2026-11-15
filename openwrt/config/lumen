@@ -1,0 +1,6 @@
+config history 'history'
+	# seconds between samples (minimum 5)
+	option interval '300'
+	# optional: file to mirror the history to once an hour so it survives reboots,
+	# e.g. /mnt/sda1/lumen-history.json (leave empty to keep history in RAM only)
+	option persist ''

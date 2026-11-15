@@ -122,3 +122,15 @@ export interface Stats {
 }
 
 export interface Service { name: string; running: boolean; instances: number; exitCode?: number }
+
+export type HistoryRange = '1h' | '24h' | '7d' | '30d' | '90d';
+export interface History {
+  running: boolean;
+  step?: number;               // seconds per bucket
+  tier?: 'fine' | 'hour';
+  now?: number;
+  since?: number | null;
+  t?: number[];                // bucket timestamps (unix seconds)
+  rx?: Record<string, number[]>; // bytes received per bucket, per device
+  tx?: Record<string, number[]>;
+}

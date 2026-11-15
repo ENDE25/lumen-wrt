@@ -37,3 +37,10 @@ export function cidr(a: { address: string; mask: number }): string {
 export function load(v: number): string {
   return (v / 65536).toFixed(2);
 }
+
+/** Math.max(...arr) overflows the call stack on very large arrays; a loop never does. */
+export function maxOf(arr: ArrayLike<number>, floor = 0): number {
+  let m = floor;
+  for (let i = 0; i < arr.length; i++) if (arr[i] > m) m = arr[i];
+  return m;
+}

@@ -6,6 +6,9 @@
 
 import { readfile, lsdir } from 'fs';
 
+const HISTORY_FILE = '/tmp/lumen/history.json';
+const RANGES = { '1h': 3600, '24h': 86400, '7d': 7 * 86400, '30d': 30 * 86400, '90d': 90 * 86400 };
+
 function mac_from(s, o) {
 	return sprintf('%02x:%02x:%02x:%02x:%02x:%02x',
 		ord(s, o), ord(s, o + 1), ord(s, o + 2), ord(s, o + 3), ord(s, o + 4), ord(s, o + 5));
@@ -115,7 +118,29 @@ function read_temps() {
 	return out;
 }
 
+// Traffic history written by the lumen-history collector. Only the requested window is returned.
+function history(range) {
+	let span = RANGES[range] ?? 86400;
+	let raw = readfile(HISTORY_FILE);
+	if (!raw) return { running: false };
+	let d = json(raw);
+	if (!d?.fine) return { running: false };
+	let fine = span <= 7 * 86400;
+	let tier = fine ? d.fine : d.hour, step = fine ? d.step : 3600;
+	let now = time(), cutoff = now - span - step;
+	let from = 0;
+	while (from < length(tier.t) && tier.t[from] < cutoff) from++;
+	let out = { running: now - d.lastT < 3 * d.step + 5, step, tier: fine ? 'fine' : 'hour', now, since: length(tier.t) ? tier.t[0] : null, t: slice(tier.t, from), rx: {}, tx: {} };
+	for (let dev in keys(tier.rx)) { out.rx[dev] = slice(tier.rx[dev], from); out.tx[dev] = slice(tier.tx[dev], from); }
+	return out;
+}
+
 const methods = {
+	history: {
+		args: { range: 'range' },
+		call: function(request) { return history(request.args?.range); }
+	},
+
 	stats: {
 		call: function(request) {
 			let la = split(trim(readfile('/proc/loadavg') ?? ''), ' ');
