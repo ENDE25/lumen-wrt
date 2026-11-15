@@ -13,7 +13,12 @@ by professional network consoles: a compact icon rail, cards, live charts and sl
 - A router running **OpenWrt** (tested on 25.12). Lumen is architecture-independent: it only needs `ubus`, `rpcd`,
   `uhttpd` (with its ubus endpoint, enabled by default), `usign` and `jsonfilter`, all part of a standard image.
 - **Root SSH** access to the router, and **working DNS + HTTPS from the router** (it downloads the release itself).
-- About 4 MB free in `/usr` and `/www`. LuCI is *not* required (and is never touched if present).
+- About 4 MB free in `/usr` and `/www`.
+- **LuCI's base packages** (`luci-base`, plus the usual LuCI apps). Lumen reads hosts, leases and wireless status
+  through `rpcd-mod-luci` and relies on the access rules LuCI installs for `uci`, `system`, `network`, `log` and
+  `service`. Default images include them. Lumen runs alongside LuCI and never modifies it.
+- **OpenWrt 25.12 (apk) is the tested platform.** On releases that use `opkg` (24.10 and earlier) everything except the
+  *Software* page is expected to work, but that is not yet verified; see the roadmap.
 
 ### Install
 
@@ -75,6 +80,7 @@ LuCI and the rest of OpenWrt are never touched.
 | `signature check failed` | The release is not signed by the Lumen key pinned on this router. Nothing was changed. |
 | `usign is required` | `usign` is missing (it normally ships with OpenWrt). Install it with `apk add usign` / `opkg install usign`. |
 | `not enough free space` | Free about 4 MB on `/usr`. |
+| Clients / Wi-Fi / DHCP pages show errors such as "Object not found" or "Access denied" | LuCI's base packages are missing (`apk add luci-base` / `opkg install luci-base`). |
 | Login fails or the page is blank | Check `ubus call lumen stats` and `uci get uhttpd.main.ubus_prefix` (should be `/ubus`); `/etc/init.d/rpcd restart` often helps. |
 | System shows "deployed from source" | That copy came from `npm run deploy`, not the installer; install with the one-liner to get managed updates. |
 | Traffic → Clients is empty | Per-client accounting counts traffic *routed through* the router, and under-counts with flow offloading. |
@@ -177,6 +183,8 @@ scripts/         deploy.sh
 - [x] Vendor detection from the MAC prefix (IEEE MA-L/MA-M/MA-S, 360 KB gzipped, loaded on demand) with brand logos and better category icons; private/randomised MACs are labelled as such
 - [x] Custom device names and device types tied to the MAC (stored on the router in `/etc/config/lumen`, shown everywhere)
 - [x] One-line installer with signed releases, self-update from the panel and clean uninstall
+- [ ] `opkg` backend for the Software page (OpenWrt 24.10 and earlier) and a compatibility test on 24.10
+- [ ] Independence from LuCI packages (ship Lumen's own access rules and data methods)
 - [ ] Optional native `apk` package / feed
 - [x] Package management (apk): list/search/install/remove/upgrade with a dry-run preview and live log, detached jobs, core packages protected; firmware release check against downloads.openwrt.org
 - [ ] Flashing firmware from the panel (sysupgrade)
