@@ -28,28 +28,21 @@ in one lightweight web app that installs with a single command.
 
 <br>
 
-<table>
-<tr>
-<td width="50%" valign="top">
+<div align="center">
 
-**One command to install**
-
-Run the command below on your router over SSH. Requirements and details are in the [installation guide](#installation).
-
-</td>
-<td width="50%" valign="top">
-
-**Works alongside LuCI**
-
-It never modifies LuCI, so you can try Lumen at no risk and keep LuCI as a fallback. Removing it takes one click.
-
-</td>
-</tr>
-</table>
+### ⚡ Install in one command
 
 ```sh
 wget -qO- https://raw.githubusercontent.com/ENDE25/lumen-wrt/main/release/install.sh | sh
 ```
+
+<sub>Run it on your router over SSH. Requirements and details are in the [installation guide](#installation).</sub>
+
+<br>
+
+🤝 **Works alongside LuCI.** Lumen never modifies it, so you can try it at no risk and keep LuCI as a fallback.
+
+</div>
 
 <br>
 
