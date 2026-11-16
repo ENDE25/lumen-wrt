@@ -28,6 +28,17 @@ in one lightweight web app that installs with a single command.
 
 <br>
 
+> [!TIP]
+> **One command to install.** Run it on your router over SSH. Requirements and details are in the [installation guide](#installation).
+> ```sh
+> wget -qO- https://raw.githubusercontent.com/ENDE25/lumen-wrt/main/release/install.sh | sh
+> ```
+
+> [!NOTE]
+> **Works alongside LuCI.** Lumen installs next to LuCI and never modifies it, so you can try it with no risk and keep LuCI as a fallback. Removing Lumen takes one click.
+
+<br>
+
 ## Why Lumen
 
 OpenWrt is superb firmware, but its default interface is built for configuring, not for *seeing* your network.
