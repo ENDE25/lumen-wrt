@@ -144,9 +144,9 @@
       {#if versions && (fw.kind === 'patch' || fw.kind === 'series')}
         <div class="links">
           <a href="https://openwrt.org/releases/{series(fw.latest)}/notes-{fw.latest}" target="_blank" rel="noreferrer">Release notes</a>
-          <a href="https://firmware-selector.openwrt.org/?version={fw.latest}&target={board?.release.target ?? ''}" target="_blank" rel="noreferrer">Get the firmware image</a>
+          <a href="#/backup">Install it</a>
         </div>
-        <p class="faint small">Lumen doesn't flash firmware yet. Build an image with the firmware selector and flash it from LuCI (<em>System → Backup / Flash Firmware</em>) or its Attended Sysupgrade app.</p>
+        <p class="faint small">Lumen can install it for you: open <a href="#/backup">Backup &amp; Firmware</a>, which downloads the official image for your device and checks it before flashing.</p>
       {/if}
     </div>
   </div>

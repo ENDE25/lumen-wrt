@@ -2,11 +2,30 @@
   import Icon from '../components/Icon.svelte';
   import Toggle from '../components/Toggle.svelte';
   import { getBoard } from '../lib/api';
+  import { fetchVersions, firmwareStatus, findImage, type FirmwareImage, type FirmwareStatus } from '../lib/firmware';
   import { bytes } from '../lib/format';
   import * as m from '../lib/maintenance';
 
-  let hostname = $state('');
-  getBoard().then((b) => (hostname = b.hostname)).catch(() => {});
+  let hostname = $state(''), board = $state<Awaited<ReturnType<typeof getBoard>> | null>(null);
+  let status = $state<FirmwareStatus | null>(null), image = $state<FirmwareImage | null | undefined>(undefined);   // undefined = not looked up yet
+  getBoard().then(async (b) => {
+    board = b; hostname = b.hostname;
+    status = firmwareStatus(b.release.version, await fetchVersions());
+    if (status.kind === 'patch' || status.kind === 'series') image = await findImage(status.latest, b.release.target, b.board_name);
+  }).catch(() => {});
+  let step = $state<'' | 'download' | 'upload'>(''), frac = $state(0);
+  async function getLatest() {
+    if (!image) return;
+    err = ''; note = ''; fw = null; fAsk = false; busy = 'fw-latest'; frac = 0;
+    try {
+      step = 'download';
+      const blob = await m.downloadBlob(image.url, (x) => (frac = x));
+      step = 'upload'; frac = 0;
+      fw = await m.stageFirmware(blob, image.sha256, (x) => (frac = x));
+      keep = fw.allowBackup;
+    } catch (x) { fail(x); }
+    step = ''; busy = '';
+  }
 
   let busy = $state(''), err = $state(''), note = $state('');
   // 'waiting' = the router is rebooting; the page polls until it answers again.
@@ -106,7 +125,25 @@
 
     <div class="card">
       <div class="card-title"><h2>Flash new firmware</h2></div>
-      <p class="muted">Upload a <b>sysupgrade</b> image for this exact device (from openwrt.org or your own build). The router checks the image before anything is written.</p>
+      {#if (status?.kind === 'patch' || status?.kind === 'series') && !fw}
+        <div class="latest">
+          <div>
+            <b>OpenWrt {status.latest} is available</b> <span class="muted">· you run {board?.release.version}</span>
+            {#if image === undefined}<p class="muted small">Looking for the image for your device…</p>
+            {:else if image}<p class="muted small">Official image <span class="mono">{image.name}</span>. Lumen downloads it in your browser, checks its checksum and sends it to the router. Nothing is flashed until you confirm.</p>
+            {:else}<p class="muted small">No ready-made image was found for this device. Use the <a href="https://firmware-selector.openwrt.org/?version={status.latest}&target={board?.release.target ?? ''}" target="_blank" rel="noreferrer">firmware selector</a> and upload the file below.</p>{/if}
+            {#if status.kind === 'series'}<p class="alert"><Icon name="alert" size={16} /><span>This is a new release series. Read the <a href="https://openwrt.org/releases/{status.latest.split('.').slice(0, 2).join('.')}/notes-{status.latest}" target="_blank" rel="noreferrer">release notes</a> and download a backup first; settings may not carry over cleanly.</span></p>{/if}
+          </div>
+          {#if image}
+            {#if busy === 'fw-latest'}
+              <div class="prog"><span class="small">{step === 'download' ? 'Downloading' : 'Sending to the router'}… {Math.round(frac * 100)}%</span><i><b style:width="{frac * 100}%"></b></i></div>
+            {:else}
+              <div class="row"><button class="btn" disabled={!!busy} onclick={backup}><Icon name="down" size={15} />Download backup first</button><button class="btn primary" disabled={!!busy} onclick={getLatest}>Prepare {status.latest}</button></div>
+            {/if}
+          {/if}
+        </div>
+      {/if}
+      {#if !fw}<p class="muted">Or upload a <b>sysupgrade</b> image for this exact device (from openwrt.org or your own build). The router checks the image before anything is written.</p>{/if}
       {#if fw}
         {#if fw.valid}
           <p class="ok"><Icon name="check" size={16} />Image accepted · {bytes(fw.size)}{fw.sha256 ? ' · sha256 ' + fw.sha256.slice(0, 16) + '…' : ''}</p>
@@ -146,6 +183,9 @@
   .file { position: relative; cursor: pointer; display: inline-flex; gap: 8px; align-items: center; }
   .file input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
   .card :global(.alert) { display: flex; gap: 8px; align-items: center; margin: 10px 0; }
+  .latest { display: grid; gap: 12px; padding: 14px 16px; margin-bottom: 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-2); }
+  .latest p { margin: 6px 0 0; }
+  .prog { display: grid; gap: 6px; max-width: 420px; } .prog i { height: 8px; border-radius: 99px; background: var(--border); overflow: hidden; } .prog b { display: block; height: 100%; background: var(--accent); transition: width .2s; }
   .ok { display: flex; gap: 8px; align-items: center; color: var(--ok, #16a34a); }
   .wait { text-align: center; padding: 48px 20px; } .wait h2 { margin: 10px 0 6px; } .wait p { margin: 6px auto; }
   .wait :global(svg) { animation: spin 1.4s linear infinite; color: var(--accent); }

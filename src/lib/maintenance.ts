@@ -24,17 +24,24 @@ export async function downloadBackup(hostname: string): Promise<void> {
   save(await res.blob(), name);
 }
 
-/** Upload a file to a fixed path in /tmp (via cgi-io). Returns the checksum the router reports, if any. */
-async function upload(path: string, file: File): Promise<string> {
-  if (MOCK) return 'mock-sha256';
-  const body = new FormData();
-  body.append('sessionid', sessionId());
-  body.append('filename', path);
-  body.append('filedata', file);
-  const res = await fetch('/cgi-bin/cgi-upload', { method: 'POST', body });
-  if (!res.ok) throw new Error(`Upload failed (HTTP ${res.status}).`);
-  const r = await res.json().catch(() => ({}));
-  return String(r.sha256sum ?? r.checksum ?? '');
+/** Upload a file to a fixed path in /tmp (via cgi-io). Returns the sha256 the router computed, if it reports one. */
+function upload(path: string, file: Blob, onProgress?: (frac: number) => void): Promise<string> {
+  if (MOCK) return Promise.resolve('mock-sha256');
+  return new Promise((resolve, reject) => {
+    const body = new FormData();
+    body.append('sessionid', sessionId());
+    body.append('filename', path);
+    body.append('filedata', file);
+    const x = new XMLHttpRequest();
+    x.open('POST', '/cgi-bin/cgi-upload');
+    x.upload.onprogress = (e) => e.lengthComputable && onProgress?.(e.loaded / e.total);
+    x.onerror = () => reject(new Error('Upload failed (network error).'));
+    x.onload = () => {
+      if (x.status !== 200) return reject(new Error(`Upload failed (HTTP ${x.status}).`));
+      try { const r = JSON.parse(x.responseText); resolve(String(r.sha256sum ?? '')); } catch { resolve(''); }
+    };
+    x.send(body);
+  });
 }
 
 /** Upload a backup and list what it contains; throws if it is not a valid archive. */
@@ -52,8 +59,9 @@ export async function restoreBackup(): Promise<void> {
 }
 
 export interface FirmwareCheck { valid: boolean; allowBackup: boolean; sha256: string; size: number }
-export async function stageFirmware(file: File): Promise<FirmwareCheck> {
-  const sha256 = await upload(FIRMWARE_PATH, file);
+export async function stageFirmware(file: Blob, expectedSha256?: string, onProgress?: (frac: number) => void): Promise<FirmwareCheck> {
+  const sha256 = await upload(FIRMWARE_PATH, file, onProgress);
+  if (expectedSha256 && !MOCK && sha256 && sha256 !== expectedSha256) throw new Error('The image arrived damaged (checksum mismatch). Nothing was flashed. Try again.');
   const v = await call<{ valid?: boolean; allow_backup?: boolean }>('system', 'validate_firmware_image', { path: FIRMWARE_PATH });
   return { valid: !!v.valid, allowBackup: v.allow_backup !== false, sha256, size: file.size };
 }
@@ -82,4 +90,20 @@ export async function waitForReboot(maxMs = 600000): Promise<boolean> {
     else if (wentDown || Date.now() - t0 > 90000) return true;
   }
   return false;
+}
+
+/** Download a file in the browser with progress (the router needs no internet access of its own). */
+export async function downloadBlob(url: string, onProgress: (frac: number) => void): Promise<Blob> {
+  const res = await fetch(url);
+  if (!res.ok || !res.body) throw new Error(`Download failed (HTTP ${res.status}).`);
+  const total = Number(res.headers.get('content-length')) || 0;
+  const reader = res.body.getReader(), parts: BlobPart[] = [];
+  let got = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    parts.push(value); got += value.length;
+    if (total) onProgress(got / total);
+  }
+  return new Blob(parts);
 }

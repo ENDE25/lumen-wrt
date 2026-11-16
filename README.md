@@ -101,7 +101,7 @@ in light and dark themes, on desktop and phone.
 - Checks whether a **newer OpenWrt release** exists for your router.
 
 ### Backup & firmware
-- **Download and restore** configuration backups, **flash a sysupgrade image** (checked by the router first, with an option to keep your settings), and **reset to factory defaults**.
+- **Download and restore** configuration backups, **upgrade to the latest official OpenWrt release** (Lumen finds the image for your device, downloads it in your browser, verifies its checksum and sends it to the router), or **flash your own sysupgrade image**. The router checks every image first, and you choose whether to keep your settings. You can also **reset to factory defaults**.
 
 ### Administration
 - **Root password**, **SSH access** (port, password login) and **SSH keys**, with a guard against locking yourself out.
@@ -365,7 +365,6 @@ public/         favicon and the compressed vendor table
 
 - [ ] `opkg` backend for the Software page (OpenWrt 24.10 and earlier), with a compatibility test
 - [ ] Independence from LuCI packages (ship Lumen's own access rules and data methods)
-- [ ] Download and flash the latest OpenWrt release directly from the panel
 - [ ] Native `apk` package and feed
 - [ ] More languages (English only for now)
 

@@ -39,3 +39,16 @@ export function firmwareStatus(current: string, v: Versions | null): FirmwareSta
   const [cm, cn] = current.split('.'), [sm, sn] = v.stable.split('.');
   return cm === sm && cn === sn ? { kind: 'patch', latest: v.stable } : { kind: 'series', latest: v.stable };
 }
+
+export interface FirmwareImage { name: string; url: string; sha256: string }
+
+/** The sysupgrade image for this exact device, from the release's public profile index (also CORS-enabled). */
+export async function findImage(version: string, target: string, boardName: string): Promise<FirmwareImage | null> {
+  const base = `https://downloads.openwrt.org/releases/${version}/targets/${target}`;
+  let j: any;
+  try { const r = await fetch(`${base}/profiles.json`); if (!r.ok) return null; j = await r.json(); } catch { return null; }
+  const profiles: Record<string, { supported_devices?: string[]; images?: { type: string; name: string; sha256?: string }[] }> = j.profiles ?? {};
+  const p = Object.entries(profiles).find(([id, v]) => v.supported_devices?.includes(boardName) || id === boardName.replace(',', '_'))?.[1];
+  const img = p?.images?.find((i) => i.type === 'sysupgrade');
+  return img?.sha256 ? { name: img.name, url: `${base}/${img.name}`, sha256: img.sha256 } : null;
+}
