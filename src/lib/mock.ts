@@ -64,6 +64,7 @@ const WIFI: Record<string, [string, number]> = {
   'Apple-TV': ['phy0-ap0', -58], 'Galaxy-S23': ['phy1-ap0', -61], 'Chromecast': ['phy1-ap0', -66],
   'Shelly-Lounge': ['phy1-ap0', -72], 'Pixel-8': ['phy0-ap0', -55], '': ['phy1-ap0', -78],
 };
+const OFFLINE = new Set(['Laptop-Dell', 'Pixel-8', 'Galaxy-S23']);
 const WIRED: Record<string, string> = { raspberrypi: 'lan1', 'NAS-Synology': 'lan1', 'Printer-HP': 'lan2', 'DESKTOP-GAMING': 'lan2' };
 
 // Tiny in-memory UCI so the DHCP/DNS page is fully usable in demo mode.
@@ -201,15 +202,15 @@ export async function mockCall(obj: string, method: string, args: any = {}): Pro
     case 'lumen.topology':
       return {
         bridges: { 'br-lan': ['lan1', 'lan2', 'phy0-ap0', 'phy1-ap0'] },
-        fdb: { 'br-lan': HOSTS.map(([mac, name]) => ({ mac: mac.toLowerCase(), port: WIFI[name]?.[0] ?? WIRED[name] ?? 'lan1', local: false })) },
-        neigh: HOSTS.map(([mac, , ip]) => ({ ip, mac: mac.toLowerCase(), dev: 'br-lan' })),
+        fdb: { 'br-lan': HOSTS.filter(([, n]) => !OFFLINE.has(n)).map(([mac, name]) => ({ mac: mac.toLowerCase(), port: WIFI[name]?.[0] ?? WIRED[name] ?? 'lan1', local: false })) },
+        neigh: HOSTS.filter(([, n]) => !OFFLINE.has(n)).map(([mac, , ip]) => ({ ip, mac: mac.toLowerCase(), dev: 'br-lan' })),
       };
     case 'iwinfo.info':
       return args.device === 'phy0-ap0'
         ? { ssid: 'Lumen-5G', mode: 'Master', channel: 36, frequency: 5180, signal: 0 }
         : { ssid: 'Lumen', mode: 'Master', channel: 6, frequency: 2437, signal: 0 };
     case 'iwinfo.assoclist':
-      return { results: HOSTS.filter(([, n]) => WIFI[n]?.[0] === args.device).map(([mac, n]) => ({
+      return { results: HOSTS.filter(([, n]) => !OFFLINE.has(n) && WIFI[n]?.[0] === args.device).map(([mac, n]) => ({
         mac, signal: WIFI[n][1], noise: -95, rx: { rate: args.device === 'phy0-ap0' ? 866000 : 144000 }, tx: { rate: args.device === 'phy0-ap0' ? 780000 : 130000 },
       })) };
     case 'lumen.pkg_installed': return { packages: [...mInstalled].sort((a, b) => a.name.localeCompare(b.name)).map((p) => ({ ...p, core: !!p.core })) };

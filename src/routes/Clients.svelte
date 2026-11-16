@@ -35,8 +35,10 @@
       const { k, dir } = sort;
       r = [...r].sort((a, b) => dir * String(a[k]).localeCompare(String(b[k]), undefined, { numeric: true }));
     }
-    return r;
+    return [...r.filter((c) => c.active), ...r.filter((c) => !c.active)];   // stable: offline devices go last
   });
+  const nOnline = $derived(clients.filter((c) => c.active).length);
+  const firstOff = $derived(rows.findIndex((c) => !c.active));
   const toggle = (k: 'name' | 'ip' | 'kind') =>
     (sort = sort?.k === k ? (sort.dir === 1 ? { k, dir: -1 } : null) : { k, dir: 1 });
   const arrow = (k: string) => (sort?.k === k ? (sort.dir === 1 ? ' ↑' : ' ↓') : '');
@@ -45,7 +47,7 @@
 
 <div class="page">
   <div class="page-head">
-    <h1>Clients <span class="faint">{loaded ? clients.length : ''}</span></h1>
+    <h1>Clients <span class="faint">{loaded ? `${nOnline} online${clients.length > nOnline ? ` · ${clients.length - nOnline} offline` : ''}` : ''}</span></h1>
     <div class="search">
       <Icon name="search" size={16} />
       <input class="input" placeholder="Search by name, IP or MAC" bind:value={q} aria-label="Search clients" />
@@ -64,8 +66,9 @@
         <th>DHCP lease</th>
       </tr></thead>
       <tbody>
-        {#each rows as c (c.mac)}
-          <tr class="click" class:sel={sel?.mac === c.mac} onclick={() => (sel = c)} tabindex="0"
+        {#each rows as c, i (c.mac)}
+          {#if i === firstOff && i > 0}<tr class="sep"><td colspan="7">Offline · not seen on the network right now</td></tr>{/if}
+          <tr class="click" class:off={!c.active} class:sel={sel?.mac === c.mac} onclick={() => (sel = c)} tabindex="0"
             onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && (sel = c)}>
             <td><span class="who"><span class="ico"><Glyph brand={c.brand} icon={c.kind} size={18} /></span><span class="nm"><b>{c.name || 'Unnamed'}</b>{#if c.vendor || c.randomMac}<small class="faint">{c.vendor ?? 'Private address'}</small>{/if}</span></span></td>
             <td class="num">{c.ip || '—'}</td>
@@ -111,6 +114,9 @@
   .ico { width: 32px; height: 32px; border-radius: 9px; background: var(--surface-2); color: var(--text-2); display: grid; place-items: center; }
   .ico.big { width: 56px; height: 56px; border-radius: 14px; background: var(--accent-soft); color: var(--accent); }
   .det-hero { display: flex; gap: 14px; align-items: center; margin-bottom: 14px; }
+  tr.off { background: color-mix(in srgb, var(--text) 5%, transparent); }
+  tr.off .ico, tr.off .nm, tr.off td { opacity: .62; }
+  tr.sep td { padding: 9px 16px; font-size: 11.5px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--text-3); background: var(--surface-2); border-top: 1px solid var(--border); }
   .empty { text-align: center; padding: 40px; }
   .conn { display: inline-flex; align-items: center; gap: 7px; color: var(--text-2); }
 </style>

@@ -96,14 +96,18 @@ export async function getNetworkMap(): Promise<NetworkMap> {
     if (ownMacs.has(m) || h.ipaddrs?.some((ip) => ownIps.has(ip))) continue;
     const lease = byMac.get(m);
     const name = (h.name || (lease && lease.hostname !== '*' ? lease.hostname : '')) || '';
-    let link: ClientLink | undefined;
+    // Online = associated to Wi-Fi, or in the bridge forwarding table (ages out after ~5 min); on routers
+    // without a bridge table fall back to the ARP cache.
     const wf = wifiOf.get(m);
-    if (wf) link = { type: 'wifi', dev: wf.w.ifname, ssid: wf.w.ssid, band: wf.w.band, signal: wf.c.signal, rx: wf.c.rx, tx: wf.c.tx };
+    const active = !!wf || fdbPort.has(m) || (fdbPort.size === 0 && neighDev.has(m));
+    let link: ClientLink | undefined;
+    if (!active) link = undefined;
+    else if (wf) link = { type: 'wifi', dev: wf.w.ifname, ssid: wf.w.ssid, band: wf.w.band, signal: wf.c.signal, rx: wf.c.rx, tx: wf.c.tx };
     else if (fdbPort.has(m)) link = { type: 'wired', dev: fdbPort.get(m)! };
     else if (neighDev.has(m)) link = { type: 'wired', dev: neighDev.get(m)! };
     const al = aliases.get(m);
     clients.push({
-      mac, name: al?.name || name, hostname: name || undefined, alias: !!al?.name, aliasSection: al?.section, kindOverride: al?.kind, ip: h.ipaddrs?.[0] ?? lease?.ipaddr ?? '', ip6: h.ip6addrs ?? [],
+      mac, active, name: al?.name || name, hostname: name || undefined, alias: !!al?.name, aliasSection: al?.section, kindOverride: al?.kind, ip: h.ipaddrs?.[0] ?? lease?.ipaddr ?? '', ip6: h.ip6addrs ?? [],
       kind: kindOf(name) !== 'unknown' || !al?.name ? kindOf(name) : kindOf(al.name), leaseExpires: lease?.expires, static: !lease, link,
     });
   }

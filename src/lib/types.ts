@@ -106,6 +106,7 @@ export interface Client {
   vendor?: string;      // from the MAC prefix
   brand?: string;       // logo key
   randomMac?: boolean;  // private/locally-administered address
+  active: boolean;      // seen on the network right now (Wi-Fi association, bridge table or ARP)
   mac: string;
   name: string;
   ip: string;

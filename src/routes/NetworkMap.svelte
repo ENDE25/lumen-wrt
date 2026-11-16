@@ -13,6 +13,7 @@
 
   let board = $state<Board | null>(null);
   let map = $state<NetworkMap>({ clients: [], wifi: [], bridges: {} });
+  const online = $derived(map.clients.filter((c) => c.active));
   let loaded = $state(false);
   let sel = $state<GNode | null>(null);
   let boxW = $state(1200);
@@ -27,7 +28,7 @@
     return () => { stop(); clearInterval(t); };
   });
 
-  const g = $derived(buildGraph({ board, interfaces: live.interfaces, devices: live.devices, ...map }));
+  const g = $derived(buildGraph({ board, interfaces: live.interfaces, devices: live.devices, ...map, clients: online }));
   const scale = $derived(Math.min(1, boxW / g.width));
   const byId = $derived(new Map(g.nodes.map((n) => [n.id, n])));
   // Where a link leaves a node: the Internet globe has no box, so it starts next to the globe itself.
@@ -46,8 +47,8 @@
   };
   const cur = $derived(sel ? g.nodes.find((n) => n.id === sel!.id) ?? sel : null);
   const mbps = (k?: number) => (k ? `${Math.round(k / 1000)} Mb/s` : '—');
-  const nWifi = $derived(map.clients.filter((c) => c.link?.type === 'wifi').length);
-  const nWired = $derived(map.clients.filter((c) => c.link?.type === 'wired').length);
+  const nWifi = $derived(online.filter((c) => c.link?.type === 'wifi').length);
+  const nWired = $derived(online.filter((c) => c.link?.type === 'wired').length);
   const open = (n: GNode) => (sel = n);
 </script>
 
@@ -57,7 +58,7 @@
     <div class="leg">
       <span><i class="ln"></i>Wired · {nWired}</span>
       <span><i class="ln dash"></i>Wi-Fi · {nWifi}</span>
-      <span class="faint">{map.clients.length} clients</span>
+      <span class="faint">{online.length} online</span>
     </div>
   </div>
 
