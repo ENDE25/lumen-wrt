@@ -83,12 +83,14 @@ const INIT: Record<string, { start: number; enabled: boolean; running: boolean }
 const UCI: Record<string, Record<string, any>> = {
   system: {
     cfg01e48a: { '.name': 'cfg01e48a', '.type': 'system', '.anonymous': true, hostname: 'lumen-demo', log_size: '128', zonename: 'Europe/Madrid', timezone: 'CET-1CEST,M3.5.0,M10.5.0/3' },
+    cfg02led: { '.name': 'cfg02led', '.type': 'led', '.anonymous': true, name: 'WAN activity', sysfs: 'blue:wan', trigger: 'netdev', dev: 'eth0', mode: 'link tx rx' },
     ntp: { '.name': 'ntp', '.type': 'timeserver', enabled: '1', enable_server: '0', server: ['0.openwrt.pool.ntp.org', '1.openwrt.pool.ntp.org'] },
   },
   network: {
     lan: { '.name': 'lan', '.type': 'interface', device: 'br-lan', proto: 'static', ipaddr: ['192.168.1.1/24'] },
     wan: { '.name': 'wan', '.type': 'interface', device: 'eth0', proto: 'dhcp' },
   },
+  // (LED actions live in the system config)
   dropbear: { main: { '.name': 'main', '.type': 'dropbear', Port: '22', PasswordAuth: 'on', RootPasswordAuth: 'on' } },
   lumen: {
     history: { '.name': 'history', '.type': 'history', interval: '300', clients: '1' },
@@ -364,6 +366,7 @@ export async function mockCall(obj: string, method: string, args: any = {}): Pro
     { dev: 'wg0', dst: '000A0A0A', gw: '00000000', flags: 1, metric: 0, mask: '00FFFFFF' }],
     v6: [{ dev: 'br-lan', dst: 'fd8eb34b6cf400000000000000000000', plen: 64, gw: '0'.repeat(32), metric: 1024, flags: 1 }, { dev: 'eth0', dst: '0'.repeat(32), plen: 0, gw: 'fe800000000000000000000000000001', metric: 1024, flags: 3 }] };
   if (k === 'lumen.log_clear') { mockLogCleared = Date.now(); return { ok: true }; }
+  if (k === 'luci.getLEDs') return { 'green:status': { triggers: ['none', 'default-on', 'heartbeat', 'timer', 'netdev', 'phy0tpt'], active_trigger: 'none', max_brightness: 255 }, 'blue:wan': { triggers: ['none', 'default-on', 'netdev', 'timer'], active_trigger: 'netdev', max_brightness: 255 } };
   if (k === 'luci.setPassword') return {};
   if (k === 'luci.getTimezones') return { 'Europe/Madrid': { tzstring: 'CET-1CEST,M3.5.0,M10.5.0/3' }, 'Europe/London': { tzstring: 'GMT0BST,M3.5.0/1,M10.5.0' }, UTC: { tzstring: 'UTC0' }, 'America/New_York': { tzstring: 'EST5EDT,M3.2.0,M11.1.0' } };
   if (k === 'rc.list') return INIT;

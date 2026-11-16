@@ -105,7 +105,7 @@ in light and dark themes, on desktop and phone.
 
 ### Administration
 - **Root password**, **SSH access** (port, password login) and **SSH keys**, with a guard against locking yourself out.
-- **Hostname, time zone and NTP**, **startup scripts** (start at boot, start, restart, stop) and **scheduled tasks** (cron).
+- **Hostname, time zone and NTP**, **startup scripts** (start at boot, start, restart, stop), **scheduled tasks** (cron) and **LED actions** (network activity, blink, always on).
 
 ### System
 - **Services** with running / failed state, **logs**, hardware details, temperatures, reboot, and **Lumen's own update and uninstall**.

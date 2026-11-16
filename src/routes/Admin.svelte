@@ -3,10 +3,11 @@
   import AdminAccess from './admin/AdminAccess.svelte';
   import AdminStartup from './admin/AdminStartup.svelte';
   import AdminCron from './admin/AdminCron.svelte';
+  import AdminLeds from './admin/AdminLeds.svelte';
 
-  type Tab = 'general' | 'access' | 'startup' | 'cron';
+  type Tab = 'general' | 'access' | 'startup' | 'cron' | 'leds';
   let tab = $state<Tab>('general');
-  const tabs: [Tab, string][] = [['general', 'General'], ['access', 'Access'], ['startup', 'Startup'], ['cron', 'Scheduled tasks']];
+  const tabs: [Tab, string][] = [['general', 'General'], ['access', 'Access'], ['startup', 'Startup'], ['cron', 'Scheduled tasks'], ['leds', 'LEDs']];
 </script>
 
 <div class="page">
@@ -21,5 +22,6 @@
   {#if tab === 'general'}<AdminGeneral />
   {:else if tab === 'access'}<AdminAccess />
   {:else if tab === 'startup'}<AdminStartup />
-  {:else}<AdminCron />{/if}
+  {:else if tab === 'cron'}<AdminCron />
+  {:else}<AdminLeds />{/if}
 </div>

@@ -49,3 +49,10 @@ export function cronProblem(text: string): string {
   }
   return '';
 }
+
+export interface Led { sysfs: string; triggers: string[]; active: string; max: number }
+export async function getLeds(): Promise<Led[]> {
+  const r = await call<Record<string, { triggers?: string[]; active_trigger?: string; max_brightness?: number }>>('luci', 'getLEDs');
+  return Object.entries(r ?? {}).map(([sysfs, v]) => ({ sysfs, triggers: v.triggers ?? [], active: v.active_trigger ?? 'none', max: v.max_brightness ?? 1 }))
+    .sort((a, b) => a.sysfs.localeCompare(b.sysfs));
+}
