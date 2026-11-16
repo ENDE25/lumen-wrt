@@ -12,14 +12,25 @@ export interface FwStats {
 // e.g.  "kern.warn kernel: [ 321.5] reject wan in: IN=wan OUT= MAC=... SRC=1.2.3.4 DST=5.6.7.8 LEN=60 ... PROTO=TCP SPT=4444 DPT=22 ..."
 const LINE = /(drop|reject) (\S+) (in|out|fwd): .*?SRC=(\S+) DST=(\S+).*?PROTO=(\w+)(?:.*?DPT=(\d+))?/;
 
-export async function getBlocks(): Promise<Block[]> {
+export interface LogInfo { entries: number; bytes: number; oldest: number; fwBytes: number; fwEntries: number; fwOldest: number }
+const OVERHEAD = 34;   // per-entry bookkeeping in logd's ring buffer, approximately
+
+export async function getBlocks(): Promise<{ blocks: Block[]; info: LogInfo }> {
   const r = await call<{ log: { msg: string; time: number }[] }>('log', 'read', { lines: 5000, stream: false, oneshot: true });
   const out: Block[] = [];
+  const info: LogInfo = { entries: 0, bytes: 0, oldest: 0, fwBytes: 0, fwEntries: 0, fwOldest: 0 };
   for (const l of r.log ?? []) {
+    const size = l.msg.length + OVERHEAD;
+    info.entries++; info.bytes += size;
+    if (!info.oldest || l.time < info.oldest) info.oldest = l.time;
     const m = LINE.exec(l.msg);
-    if (m) out.push({ t: l.time, action: m[1] as Block['action'], zone: m[2], dir: m[3], src: m[4], dst: m[5], proto: m[6], dport: m[7] ? +m[7] : 0 });
+    if (m) {
+      info.fwEntries++; info.fwBytes += size;
+      if (!info.fwOldest || l.time < info.fwOldest) info.fwOldest = l.time;
+      out.push({ t: l.time, action: m[1] as Block['action'], zone: m[2], dir: m[3], src: m[4], dst: m[5], proto: m[6], dport: m[7] ? +m[7] : 0 });
+    }
   }
-  return out;
+  return { blocks: out, info };
 }
 
 const top = (m: Map<string, number>, n: number) => [...m].sort((a, b) => b[1] - a[1]).slice(0, n);

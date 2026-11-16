@@ -315,6 +315,13 @@ function self_status() {
 	return { state, cmd: rd('cmd'), code: rd('code') == '' ? null : int(rd('code')), started: int(rd('started') || 0), ended: int(rd('ended') || 0), log };
 }
 
+// Empty the system log. logd keeps it in RAM; kernel lines (where firewall drops are written) are re-read from the
+// kernel ring buffer when logd restarts, so that one is cleared first. Runs detached so rpcd is not held up.
+function log_clear() {
+	system('(dmesg -c >/dev/null 2>&1; /etc/init.d/log restart) >/dev/null 2>&1 &');
+	return { ok: true };
+}
+
 function self_run(action, purge) {
 	if (!(action in ['update', 'uninstall'])) return { error: 'unsupported action' };
 	if (!access(MANAGER)) return { error: 'Lumen was not installed with the installer, so it cannot manage itself' };
@@ -335,6 +342,7 @@ const methods = {
 	pkg_search: { args: { q: 'q' }, call: function(request) { return pkg_search(request.args?.q); } },
 	pkg_plan: { args: { action: 'action', pkgs: 'pkgs' }, call: function(request) { return pkg_plan(request.args?.action, request.args?.pkgs); } },
 	pkg_status: { call: function(request) { return pkg_status(); } },
+	log_clear: { call: function(request) { return log_clear(); } },
 	pkg_run: { args: { action: 'action', pkgs: 'pkgs' }, call: function(request) { return pkg_run(request.args?.action, request.args?.pkgs); } },
 
 	clients: {

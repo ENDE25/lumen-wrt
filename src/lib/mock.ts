@@ -50,10 +50,12 @@ const HOSTS: [string, string, string, string][] = [
 ];
 
 // Fake dropped-connection lines (only when logging is switched on in the mock firewall zone).
+let mockLogCleared = 0;
 function fwLogLines() {
   if (UCI.firewall && !Object.values<any>(UCI.firewall).some((s) => s['.type'] === 'zone' && s.log === '1')) return [];
   const srcs = ['185.224.128.17', '45.155.205.233', '92.118.39.51', '198.235.24.40', '103.74.19.8', '45.155.205.233', '185.224.128.17', '185.224.128.17'];
   const ports = [22, 23, 3389, 445, 5060, 22, 8080, 22, 443];
+  if (mockLogCleared) return [];
   return Array.from({ length: 140 }, (_, i) => ({ msg: `kern.warn kernel: [ ${1000 + i}.1] ${i % 5 ? 'reject' : 'drop'} wan in: IN=eth0 OUT= MAC=00 SRC=${srcs[(i * 7) % srcs.length]} DST=85.62.14.201 LEN=60 TTL=52 PROTO=TCP SPT=${40000 + i} DPT=${ports[(i * 5) % ports.length]} WINDOW=1024 SYN`, id: 100 + i, priority: 4, source: 0, time: Date.now() - Math.floor((i * i) % 1400) * 60000 }));
 }
 
@@ -80,7 +82,7 @@ const FILES: Record<string, string> = { '/etc/dropbear/authorized_keys': 'ssh-ed
 const INIT: Record<string, { start: number; enabled: boolean; running: boolean }> = Object.fromEntries(['boot:10', 'sysinit:11', 'network:20', 'firewall:19', 'dnsmasq:19', 'odhcpd:50', 'dropbear:19', 'uhttpd:50', 'rpcd:12', 'cron:50', 'sysntpd:99', 'lumen-history:95', 'done:95'].map((x) => { const [n, o] = x.split(':'); return [n, { start: +o, enabled: true, running: n !== 'sysntpd' }]; }));
 const UCI: Record<string, Record<string, any>> = {
   system: {
-    cfg01e48a: { '.name': 'cfg01e48a', '.type': 'system', '.anonymous': true, hostname: 'lumen-demo', zonename: 'Europe/Madrid', timezone: 'CET-1CEST,M3.5.0,M10.5.0/3' },
+    cfg01e48a: { '.name': 'cfg01e48a', '.type': 'system', '.anonymous': true, hostname: 'lumen-demo', log_size: '128', zonename: 'Europe/Madrid', timezone: 'CET-1CEST,M3.5.0,M10.5.0/3' },
     ntp: { '.name': 'ntp', '.type': 'timeserver', enabled: '1', enable_server: '0', server: ['0.openwrt.pool.ntp.org', '1.openwrt.pool.ntp.org'] },
   },
   dropbear: { main: { '.name': 'main', '.type': 'dropbear', Port: '22', PasswordAuth: 'on', RootPasswordAuth: 'on' } },
@@ -316,7 +318,7 @@ export async function mockCall(obj: string, method: string, args: any = {}): Pro
     }
     case 'iwinfo.countrylist': return { results: [{ code: 'ES', name: 'Spain' }, { code: 'US', name: 'United States' }, { code: 'DE', name: 'Germany' }, { code: 'GB', name: 'United Kingdom' }, { code: 'FR', name: 'France' }] };
     case 'log.read':
-      return { log: [...LOG.map((l, i) => ({ msg: l, id: i, priority: 6, source: 3, time: Date.now() - (LOG.length - i) * 60000 })), ...fwLogLines()] };
+      return { log: [...(mockLogCleared ? [] : LOG).map((l, i) => ({ msg: l, id: i, priority: 6, source: 3, time: Date.now() - (LOG.length - i) * 60000 })), ...fwLogLines()] };
     case 'system.reboot':
       return {};
     case 'uci.get':
@@ -357,6 +359,7 @@ export async function mockCall(obj: string, method: string, args: any = {}): Pro
     { dev: 'eth0', dst: '0019A8C0', gw: '00000000', flags: 1, metric: 0, mask: '00FFFFFF' },
     { dev: 'wg0', dst: '000A0A0A', gw: '00000000', flags: 1, metric: 0, mask: '00FFFFFF' }],
     v6: [{ dev: 'br-lan', dst: 'fd8eb34b6cf400000000000000000000', plen: 64, gw: '0'.repeat(32), metric: 1024, flags: 1 }, { dev: 'eth0', dst: '0'.repeat(32), plen: 0, gw: 'fe800000000000000000000000000001', metric: 1024, flags: 3 }] };
+  if (k === 'lumen.log_clear') { mockLogCleared = Date.now(); return { ok: true }; }
   if (k === 'luci.setPassword') return {};
   if (k === 'luci.getTimezones') return { 'Europe/Madrid': { tzstring: 'CET-1CEST,M3.5.0,M10.5.0/3' }, 'Europe/London': { tzstring: 'GMT0BST,M3.5.0/1,M10.5.0' }, UTC: { tzstring: 'UTC0' }, 'America/New_York': { tzstring: 'EST5EDT,M3.2.0,M11.1.0' } };
   if (k === 'rc.list') return INIT;

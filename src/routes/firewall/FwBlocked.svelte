@@ -1,8 +1,12 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import Toggle from '../../components/Toggle.svelte';
-  import { getBlocks, summarize, PORT_NAME, type FwStats } from '../../lib/fwlog';
-  import { sectionOps, type UciOp } from '../../lib/uci';
+  import Icon from '../../components/Icon.svelte';
+  import { getBlocks, summarize, PORT_NAME, type FwStats, type LogInfo } from '../../lib/fwlog';
+  import { changes } from '../../lib/changes.svelte';
+  import { call } from '../../lib/ubus';
+  import { bytes } from '../../lib/format';
+  import { uciGet, sectionOps, str, type UciOp, type UciSection } from '../../lib/uci';
   import type { Firewall } from '../../lib/firewall';
 
   let { fw, onapply }: { fw: Firewall; onapply: (ops: UciOp[], label: string) => void } = $props();
@@ -19,8 +23,42 @@
     onapply(ops, v ? 'Blocked-traffic logging enabled' : 'Blocked-traffic logging disabled');
   }
 
-  const load = () => getBlocks().then((b) => (st = summarize(b))).catch(() => (st = summarize([])));
-  $effect(() => { on; load(); });   // refresh right after logging is switched on or off
+  let info = $state<LogInfo | null>(null), sys = $state<UciSection | null>(null), bufKb = $state(64);
+  const load = () => getBlocks().then((b) => { st = summarize(b.blocks); info = b.info; }).catch(() => (st = summarize([])));
+  async function loadBuf() {
+    try {
+      sys = Object.values(await uciGet('system')).find((s) => s['.type'] === 'system') ?? null;
+      bufKb = Number(str(sys?.log_buffer_size)) || Number(str(sys?.log_size)) || 64;   // logd's own fallback is 64 KB
+    } catch { /* keep default */ }
+  }
+
+  // How long the buffer keeps entries: if it is full, the age of its oldest entry; otherwise an estimate from the fill rate.
+  const cap = $derived(bufKb * 1024);
+  const used = $derived(info ? Math.min(1, info.bytes / cap) : 0);
+  const share = $derived(info && info.bytes ? info.fwBytes / info.bytes : 0);
+  const span = $derived(info?.oldest ? Math.max(0, Date.now() - info.oldest) : 0);
+  const human = (ms: number) => ms < 90e3 ? 'under a minute' : ms < 90 * 60e3 ? `${Math.round(ms / 60e3)} min` : ms < 36 * 3600e3 ? `${Math.round(ms / 3600e3)} h` : `${Math.round(ms / 86400e3)} days`;
+  const keeps = $derived.by(() => {
+    if (!info || !info.entries) return 'The log is empty.';
+    if (used > 0.9) return `The buffer is full: it holds about ${human(span)} of history, and older entries are discarded as new ones arrive.`;
+    if (span < 10 * 60e3) return 'Not enough activity yet to estimate how long entries are kept.';
+    return `At the current rate the buffer holds about ${human(cap / (info.bytes / span))} of history before the oldest entries start to be discarded.`;
+  });
+
+  async function setSize(kb: number) {
+    if (!sys || kb === bufKb) return;
+    if (await changes.apply(sectionOps('system', sys['.name'], sys, { log_size: String(kb) }), 'auto', `Log memory set to ${kb} KB`)) await loadBuf();
+  }
+  let clearAsk = $state(false), clearing = $state(false);
+  async function clearLog() {
+    if (!clearAsk) { clearAsk = true; return; }
+    clearAsk = false; clearing = true;
+    try { await call('lumen', 'log_clear'); } catch { /* shown by the empty log below */ }
+    await new Promise((r) => setTimeout(r, 2500));   // logd restarts, give it a moment
+    await load(); clearing = false;
+  }
+  $effect(() => { on; load(); });
+  onMount(() => { loadBuf(); });   // refresh right after logging is switched on or off
   onMount(() => { const t = setInterval(load, 15000); return () => clearInterval(t); });
 
   const W = 800, H = 150;
@@ -38,6 +76,34 @@
   </div>
   <Toggle checked={on} label={on ? 'Logging on' : 'Logging off'} disabled={!wanZones.length} onchange={setLogging} />
 </div>
+
+{#snippet storage()}
+  <div class="card store">
+    <div class="card-title"><h2>Log storage</h2>
+      <label class="size muted small">Log memory
+        <select class="input" value={bufKb} onchange={(e) => setSize(Number((e.target as HTMLSelectElement).value))} disabled={!sys}>
+          {#each [...new Set([64, 128, 256, 512, 1024, bufKb])].sort((a, b) => a - b) as kb}<option value={kb}>{kb} KB</option>{/each}
+        </select></label>
+    </div>
+    {#if info}
+      <div class="meter" role="img" aria-label="Log buffer usage"><i class="all" style:width="{used * 100}%"></i><i class="fw" style:width="{used * share * 100}%"></i></div>
+      <div class="legend small">
+        <span><i class="sw fw"></i>Firewall · {bytes(info.fwBytes)} ({info.fwEntries.toLocaleString()} entries)</span>
+        <span><i class="sw all"></i>Other system messages · {bytes(info.bytes - info.fwBytes)}</span>
+        <span class="faint">{bytes(info.bytes)} of {bufKb} KB in use</span>
+      </div>
+      <p class="muted small">{keeps} The log is shared by every service and lives in RAM: it never wears the flash, and it is emptied when the router restarts.</p>
+      <div class="row">
+        {#if clearAsk}
+          <span class="muted small">This empties the whole system log, not only the firewall's. Nothing else changes and no service is interrupted.</span>
+          <button class="btn danger" onclick={clearLog}>Confirm: clear log</button><button class="btn" onclick={() => (clearAsk = false)}>Cancel</button>
+        {:else}
+          <button class="btn" disabled={clearing || !info.entries} onclick={clearLog}><Icon name={clearing ? 'refresh' : 'trash'} size={15} />{clearing ? 'Clearing…' : 'Clear log'}</button>
+        {/if}
+      </div>
+    {:else}<p class="muted small">Reading the log…</p>{/if}
+  </div>
+{/snippet}
 
 {#if !on && !st?.total}
   <div class="card empty">
@@ -77,10 +143,21 @@
   </div>
 {/if}
 
+{@render storage()}
+
 <style>
   .head { display: flex; justify-content: space-between; align-items: center; gap: 20px; margin-bottom: 16px; }
   .head h2 { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
   .head p { max-width: 62ch; }
+  .store { margin-top: 16px; display: grid; gap: 12px; }
+  .store .card-title { margin-bottom: 0; }
+  .size { display: inline-flex; align-items: center; gap: 8px; } .size select { width: auto; padding: 4px 8px; }
+  .meter { height: 10px; border-radius: 99px; background: var(--surface-2); position: relative; overflow: hidden; }
+  .meter i { position: absolute; inset: 0 auto 0 0; border-radius: 99px; }
+  .meter .all { background: color-mix(in srgb, var(--text-3) 55%, transparent); } .meter .fw { background: var(--accent); }
+  .legend { display: flex; gap: 18px; flex-wrap: wrap; align-items: center; color: var(--text-2); }
+  .sw { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-right: 6px; } .sw.fw { background: var(--accent); } .sw.all { background: color-mix(in srgb, var(--text-3) 55%, transparent); }
+  .store .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
   .empty { text-align: center; padding: 36px 20px; }
   .empty p { margin: 4px auto; max-width: 56ch; }
   .g3 { grid-template-columns: repeat(3, 1fr); margin-bottom: 16px; }
