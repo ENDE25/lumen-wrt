@@ -1,24 +1,12 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import Icon from '../../components/Icon.svelte';
   import Toggle from '../../components/Toggle.svelte';
   import { changes } from '../../lib/changes.svelte';
   import { uciGet, sectionOps, str, type UciSection } from '../../lib/uci';
-  import { readFile, writeFile, setPassword, parseKeys, validKey, type SshKey } from '../../lib/admin';
+  import { readFile, writeFile, parseKeys, validKey, type SshKey } from '../../lib/admin';
 
-  // ---- password
-  let pw = $state(''), pw2 = $state(''), pwMsg = $state(''), pwErr = $state(''), pwBusy = $state(false);
-  const pwProblem = $derived(pw.length < 6 ? 'At least 6 characters' : pw !== pw2 ? 'The two passwords differ' : '');
-  async function changePw() {
-    if (pwProblem) return;
-    pwBusy = true; pwErr = ''; pwMsg = '';
-    try { await setPassword(pw); pwMsg = 'Password changed. It applies to Lumen, LuCI and SSH.'; pw = pw2 = ''; }
-    catch (e) { pwErr = e instanceof Error ? e.message : String(e); }
-    pwBusy = false;
-  }
-
-  // ---- SSH keys
-  let keys = $state<SshKey[]>([]), newKey = $state(''), keyErr = $state(''), keysLoaded = $state(false);
+  // ---- keys
+  let keys = $state<SshKey[]>([]), newKey = $state(''), keyErr = $state(''), keysLoaded = $state(false), delAsk = $state('');
   const loadKeys = async () => { keys = parseKeys(await readFile('/etc/dropbear/authorized_keys')); keysLoaded = true; };
   const saveKeys = (lines: string[]) => writeFile('/etc/dropbear/authorized_keys', lines.join('\n') + (lines.length ? '\n' : ''), 0o600);
   async function addKey() {
@@ -28,14 +16,13 @@
     keyErr = '';
     try { await saveKeys([...keys.map((k) => k.line), l]); newKey = ''; await loadKeys(); } catch (e) { keyErr = e instanceof Error ? e.message : String(e); }
   }
-  let delAsk = $state('');
   async function delKey(k: SshKey) {
     if (delAsk !== k.line) { delAsk = k.line; return; }
     delAsk = '';
     try { await saveKeys(keys.filter((x) => x.line !== k.line).map((x) => x.line)); await loadKeys(); } catch (e) { keyErr = e instanceof Error ? e.message : String(e); }
   }
 
-  // ---- SSH server (dropbear)
+  // ---- server (dropbear)
   let db = $state<UciSection | null>(null);
   let d = $state({ port: '22', pass: true, rootPass: true });
   async function loadDb() {
@@ -59,32 +46,20 @@
   onMount(() => { loadKeys(); loadDb().catch(() => {}); });
 </script>
 
-<div class="grid g2">
-  <div class="card form">
-    <div class="card-title"><h2>Router password</h2></div>
-    <p class="muted small">The <b>root</b> password protects this panel, LuCI and SSH.</p>
-    <label><span>New password</span><input class="input" type="password" autocomplete="new-password" bind:value={pw} /></label>
-    <label><span>Repeat it</span><input class="input" type="password" autocomplete="new-password" bind:value={pw2} /></label>
-    {#if pw && pwProblem}<small class="bad">{pwProblem}</small>{/if}
-    {#if pwErr}<p class="alert"><Icon name="alert" size={16} />{pwErr}</p>{/if}
-    {#if pwMsg}<p class="ok"><Icon name="check" size={16} />{pwMsg}</p>{/if}
-    <div><button class="btn primary" disabled={!!pwProblem || pwBusy} onclick={changePw}>Change password</button></div>
-  </div>
+<div class="card form">
+  <div class="card-title"><h2>SSH</h2></div>
 
-  <div class="card form">
-    <div class="card-title"><h2>SSH access</h2></div>
-    {#if db}
-      <label><span>Port</span><input class="input" style="max-width:120px" inputmode="numeric" bind:value={d.port} /></label>
-      <div><Toggle bind:checked={d.pass} label="Allow password login" /></div>
-      <div><Toggle bind:checked={d.rootPass} label="Allow root to log in with a password" /></div>
-      {#if dbErr}<small class="bad">{dbErr}</small>{/if}
-      <div><button class="btn primary" disabled={!dbDirty || !!dbErr} onclick={saveDb}>Save</button></div>
-    {:else}<p class="muted">The SSH server is not configured on this router.</p>{/if}
-  </div>
-</div>
+  <h3>Server</h3>
+  {#if db}
+    <label><span>Port</span><input class="input" style="max-width:120px" inputmode="numeric" bind:value={d.port} /></label>
+    <div><Toggle bind:checked={d.pass} label="Allow password login" /></div>
+    <div><Toggle bind:checked={d.rootPass} label="Allow root to log in with a password" /></div>
+    {#if dbErr}<small class="bad">{dbErr}</small>{/if}
+    <div><button class="btn primary" disabled={!dbDirty || !!dbErr} onclick={saveDb}>Save</button></div>
+  {:else}<p class="muted small">The SSH server is not configured on this router.</p>{/if}
 
-<div class="card form" style="margin-top:16px">
-  <div class="card-title"><h2>SSH keys</h2></div>
+  <hr />
+  <h3>Authorized keys</h3>
   <p class="muted small">Public keys allowed to log in as root without a password.</p>
   {#each keys as k (k.line)}
     <div class="key">
@@ -99,13 +74,12 @@
 
 <style>
   .form { display: grid; gap: 14px; align-content: start; }
-  .g2 { grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); align-items: start; }
+  h3 { font-size: 13px; font-weight: 600; color: var(--text-2); text-transform: uppercase; letter-spacing: .04em; margin: 2px 0 -4px; }
+  hr { border: 0; border-top: 1px solid var(--border); margin: 6px 0; }
   label { display: grid; gap: 6px; } label > span { font-size: 13px; color: var(--text-2); }
-  textarea.input { font-family: var(--mono, monospace); font-size: 12px; resize: vertical; }
+  textarea.input { font-family: var(--mono, monospace); font-size: 12px; resize: vertical; height: auto; min-height: 76px; padding: 10px 12px; }
   .bad { color: var(--bad, #dc2626); }
-  .ok { display: flex; gap: 8px; align-items: center; color: var(--ok, #16a34a); }
-  .form :global(.alert) { display: flex; gap: 8px; align-items: center; }
   .key { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; }
-  .key div { display: grid; } .key small { font-family: var(--mono, monospace); }
+  .key div { display: grid; min-width: 0; } .key small { font-family: var(--mono, monospace); }
   .sm { padding: 5px 10px; font-size: 12.5px; }
 </style>

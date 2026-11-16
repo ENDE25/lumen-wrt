@@ -36,7 +36,7 @@
 </div>
 
 <style>
-  .form { display: grid; gap: 14px; max-width: 960px; }
+  .form { display: grid; gap: 14px; }
   textarea.input { font-family: var(--mono, monospace); font-size: 13px; resize: vertical; height: auto; min-height: 240px; padding: 10px 12px; line-height: 1.6; }
   .bad { color: var(--bad, #dc2626); }
   .ok { display: flex; gap: 8px; align-items: center; color: var(--ok, #16a34a); }

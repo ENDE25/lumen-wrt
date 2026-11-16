@@ -194,7 +194,7 @@
           <tbody>
             {#each wifiClients as c (c.mac)}
               <tr>
-                <td><b>{c.name || c.ip || 'Unnamed'}</b>{#if c.name}<span class="faint"> {c.ip}</span>{/if}</td>
+                <td><b>{c.name || c.ip || 'Unnamed'}</b>{#if c.name}<span class="faint cip">{c.ip}</span>{/if}</td>
                 <td class="mono muted">{c.mac}</td>
                 <td>{c.link?.ssid} <span class="faint">{c.link?.band}</span></td>
                 <td class="num"><span class="sig"><SignalBars dbm={c.link?.signal} />{c.link?.signal ?? '—'} dBm</span></td>
@@ -261,6 +261,7 @@
 </Drawer>
 
 <style>
+  .cip { margin-left: 10px; font-weight: 400; }
   .empty { display: grid; justify-items: center; text-align: center; gap: 10px; padding: 48px 24px; color: var(--text-2); }
   .empty code { background: var(--surface-2); padding: 1px 6px; border-radius: 5px; font-size: 12.5px; }
   .empty p { max-width: 520px; }

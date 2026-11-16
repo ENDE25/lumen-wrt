@@ -59,7 +59,7 @@
 {/if}
 
 <style>
-  .form { max-width: 760px; display: grid; gap: 16px; }
+  .form { display: grid; gap: 16px; align-content: start; }
   label { display: grid; gap: 6px; } label > span { font-size: 13px; color: var(--text-2); }
   textarea.input { font-family: var(--mono, monospace); resize: vertical; height: auto; min-height: 130px; padding: 10px 12px; line-height: 1.5; }
   .bad { color: var(--bad, #dc2626); }
