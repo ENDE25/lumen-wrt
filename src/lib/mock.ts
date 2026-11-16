@@ -49,6 +49,14 @@ const HOSTS: [string, string, string, string][] = [
   ['F6:3A:11:55:77:0D', 'Pixel-8', '192.168.1.105', 'phone'],
 ];
 
+// Fake dropped-connection lines (only when logging is switched on in the mock firewall zone).
+function fwLogLines() {
+  if (UCI.firewall && !Object.values<any>(UCI.firewall).some((s) => s['.type'] === 'zone' && s.log === '1')) return [];
+  const srcs = ['185.224.128.17', '45.155.205.233', '92.118.39.51', '198.235.24.40', '103.74.19.8', '45.155.205.233', '185.224.128.17', '185.224.128.17'];
+  const ports = [22, 23, 3389, 445, 5060, 22, 8080, 22, 443];
+  return Array.from({ length: 140 }, (_, i) => ({ msg: `kern.warn kernel: [ ${1000 + i}.1] ${i % 5 ? 'reject' : 'drop'} wan in: IN=eth0 OUT= MAC=00 SRC=${srcs[(i * 7) % srcs.length]} DST=85.62.14.201 LEN=60 TTL=52 PROTO=TCP SPT=${40000 + i} DPT=${ports[(i * 5) % ports.length]} WINDOW=1024 SYN`, id: 100 + i, priority: 4, source: 0, time: Date.now() - Math.floor((i * i) % 1400) * 60000 }));
+}
+
 const LOG = [
   'daemon.notice netifd: Interface \'wan\' is now up',
   'daemon.info dnsmasq-dhcp[1234]: DHCPACK(br-lan) 192.168.1.101 a4:83:e7:11:22:01 Marta-iPhone',
@@ -301,7 +309,7 @@ export async function mockCall(obj: string, method: string, args: any = {}): Pro
     }
     case 'iwinfo.countrylist': return { results: [{ code: 'ES', name: 'Spain' }, { code: 'US', name: 'United States' }, { code: 'DE', name: 'Germany' }, { code: 'GB', name: 'United Kingdom' }, { code: 'FR', name: 'France' }] };
     case 'log.read':
-      return { log: LOG.map((l, i) => ({ msg: l, id: i, priority: 6, source: 3, time: Date.now() - (LOG.length - i) * 60000 })) };
+      return { log: [...LOG.map((l, i) => ({ msg: l, id: i, priority: 6, source: 3, time: Date.now() - (LOG.length - i) * 60000 })), ...fwLogLines()] };
     case 'system.reboot':
       return {};
     case 'uci.get':

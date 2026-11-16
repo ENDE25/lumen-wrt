@@ -3,6 +3,7 @@
   import FwForwards from './firewall/FwForwards.svelte';
   import FwRules from './firewall/FwRules.svelte';
   import FwZones from './firewall/FwZones.svelte';
+  import FwBlocked from './firewall/FwBlocked.svelte';
   import { changes } from '../lib/changes.svelte';
   import { uciGet, type UciOp } from '../lib/uci';
   import { parseFirewall, type Firewall } from '../lib/firewall';
@@ -10,7 +11,7 @@
   import { live } from '../lib/live.svelte';
   import type { Client } from '../lib/types';
 
-  type Tab = 'forwards' | 'rules' | 'zones';
+  type Tab = 'forwards' | 'rules' | 'zones' | 'blocked';
   let tab = $state<Tab>('forwards');
   let fw = $state<Firewall | null>(null);
   let err = $state('');
@@ -39,6 +40,7 @@
       <button role="tab" aria-selected={tab === 'forwards'} class:on={tab === 'forwards'} onclick={() => (tab = 'forwards')}>Port forwards</button>
       <button role="tab" aria-selected={tab === 'rules'} class:on={tab === 'rules'} onclick={() => (tab = 'rules')}>Traffic rules</button>
       <button role="tab" aria-selected={tab === 'zones'} class:on={tab === 'zones'} onclick={() => (tab = 'zones')}>Zones</button>
+      <button role="tab" aria-selected={tab === 'blocked'} class:on={tab === 'blocked'} onclick={() => (tab = 'blocked')}>Blocked</button>
     </div>
   </div>
 
@@ -46,5 +48,6 @@
   {:else if !fw}<div class="card"><p class="muted">Loading…</p></div>
   {:else if tab === 'forwards'}<FwForwards {fw} {clients} onapply={apply} />
   {:else if tab === 'rules'}<FwRules {fw} onapply={apply} />
-  {:else}<FwZones {fw} onapply={apply} />{/if}
+  {:else if tab === 'zones'}<FwZones {fw} onapply={apply} />
+  {:else}<FwBlocked {fw} onapply={apply} />{/if}
 </div>
