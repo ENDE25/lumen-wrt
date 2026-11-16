@@ -6,6 +6,14 @@ by professional network consoles: a compact icon rail, cards, live charts and sl
 > Status: **v0.8.0**. Dashboards plus safe configuration of DHCP/DNS, the firewall and Wi-Fi, a software manager, and a signed one-line installer with self-update.
 > Jump to the [installation guide](#installation-guide).
 
+<img width="1900" height="1058" alt="image" src="https://github.com/user-attachments/assets/170e5d76-09ca-4ba7-91ac-7144c47c2e2b" />
+<img width="1895" height="1058" alt="image" src="https://github.com/user-attachments/assets/a6dbb326-4bb3-4d5f-ad8a-2a365e1a0fb3" />
+<img width="1896" height="1053" alt="image" src="https://github.com/user-attachments/assets/128fb7a2-3db5-478d-81ce-f8c33957ec92" />
+<img width="1897" height="1059" alt="image" src="https://github.com/user-attachments/assets/59c7af96-fbc3-4d44-bc50-3e3f9630ca3d" />
+<img width="1900" height="1058" alt="image" src="https://github.com/user-attachments/assets/df87012a-9714-481d-86db-39a49dcbffb6" />
+<img width="1897" height="1057" alt="image" src="https://github.com/user-attachments/assets/b4f6f8ea-716e-4cec-b3b3-70231e567921" />
+
+
 ## Installation guide
 
 ### Requirements
