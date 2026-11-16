@@ -367,6 +367,12 @@ export async function mockCall(obj: string, method: string, args: any = {}): Pro
     v6: [{ dev: 'br-lan', dst: 'fd8eb34b6cf400000000000000000000', plen: 64, gw: '0'.repeat(32), metric: 1024, flags: 1 }, { dev: 'eth0', dst: '0'.repeat(32), plen: 0, gw: 'fe800000000000000000000000000001', metric: 1024, flags: 3 }] };
   if (k === 'lumen.log_clear') { mockLogCleared = Date.now(); return { ok: true }; }
   if (k === 'luci.getLEDs') return { 'green:status': { triggers: ['none', 'default-on', 'heartbeat', 'timer', 'netdev', 'phy0tpt'], active_trigger: 'none', max_brightness: 255 }, 'blue:wan': { triggers: ['none', 'default-on', 'netdev', 'timer'], active_trigger: 'netdev', max_brightness: 255 } };
+  if (k === 'iwinfo.scan') {
+    const g = args.device === 'phy0-ap0';
+    const mk = (ssid: string, ch: number, sig: number, sec = true) => ({ ssid, bssid: Array.from({ length: 6 }, (_, i) => ((ch * 37 + sig * 11 + i * 53) & 255).toString(16).padStart(2, '0')).join(':').toUpperCase(), channel: ch, signal: sig, encryption: { enabled: sec } });
+    return { results: g ? [mk('Neighbour-5G', 36, -62), mk('CafeWiFi', 44, -71, false), mk('Vodafone-5G', 149, -80), mk('TP-Link_5G', 36, -84)]
+      : [mk('MOVISTAR_1A2B', 1, -55), mk('MIWIFI_2G', 6, -61), mk('Vodafone-9F', 6, -70), mk('Hidden', 11, -78), mk('', 1, -82), mk('Lumen-Guest-X', 7, -88)] };
+  }
   if (k === 'luci.setPassword') return {};
   if (k === 'luci.getTimezones') return { 'Europe/Madrid': { tzstring: 'CET-1CEST,M3.5.0,M10.5.0/3' }, 'Europe/London': { tzstring: 'GMT0BST,M3.5.0/1,M10.5.0' }, UTC: { tzstring: 'UTC0' }, 'America/New_York': { tzstring: 'EST5EDT,M3.2.0,M11.1.0' } };
   if (k === 'rc.list') return INIT;

@@ -4,6 +4,7 @@
   import Toggle from '../components/Toggle.svelte';
   import Drawer from '../components/Drawer.svelte';
   import SignalBars from '../components/SignalBars.svelte';
+  import WifiScan from './wifi/WifiScan.svelte';
   import { changes } from '../lib/changes.svelte';
   import { live } from '../lib/live.svelte';
   import { call, UbusError } from '../lib/ubus';
@@ -205,6 +206,7 @@
         </table></div>
       {:else}<p class="muted">No devices are connected over Wi-Fi right now.</p>{/if}
     </div>
+    <WifiScan ifaces={map.wifi} />
   {/if}
 </div>
 

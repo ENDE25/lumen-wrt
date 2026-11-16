@@ -87,7 +87,7 @@ in light and dark themes, on desktop and phone.
 - The **active routing table** (IPv4 and IPv6), **static routes** you can add or remove with safe apply, the **neighbour (ARP) table** with device names, and **ping, traceroute and DNS lookup** run from the router.
 
 ### Wi-Fi
-- Radios (channel, width, country, power), SSIDs with WPA3, WPA2/WPA3, WPA2, OWE or open, hidden networks, client isolation, a passphrase generator, and connected clients with a **Disconnect** button.
+- Radios (channel, width, country, power), SSIDs with WPA3, WPA2/WPA3, WPA2, OWE or open, hidden networks, client isolation, a passphrase generator, connected clients with a **Disconnect** button, and a **channel analysis** that scans nearby networks, charts how crowded each channel is and suggests a clearer one.
 
 ### Firewall
 - A **Blocked** tab with an optional logging toggle: blocked connections per hour, top sources and most targeted ports, read from the system log only while the page is open.
