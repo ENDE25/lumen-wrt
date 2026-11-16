@@ -1,8 +1,8 @@
 {
-  "version": "0.8.1",
-  "released": "2026-11-16T10:03:38.409Z",
-  "tarball": "lumen-0.8.1.tar.gz",
-  "sha256": "3d0e27bf4aab5cdbdbee5780cd204188a70dddeeb9e577925bf1f63dfc55de5b",
-  "size": 512103,
-  "notes": "Fixes a leftover Spanish label (\"Interfaz\") on the DHCP & DNS page."
+  "version": "0.8.2",
+  "released": "2026-11-16T11:36:37.340Z",
+  "tarball": "lumen-0.8.2.tar.gz",
+  "sha256": "10e7a3efedbfb8f35d61eca29fe49b004c54e5fbd0882d08ed2ba717a31f2da3",
+  "size": 512398,
+  "notes": ""
 }
