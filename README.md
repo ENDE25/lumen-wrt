@@ -80,6 +80,9 @@ in light and dark themes, on desktop and phone.
 - **Vendor recognition** from the MAC address (about 54 000 vendors), **brand logos** for the popular ones, and a clear "Private address" label for phones that randomise their MAC.
 - **Give any device a name and a type** by hand. They are stored on the router, tied to the MAC, and show up everywhere.
 
+### Routing & diagnostics
+- The **active routing table** (IPv4 and IPv6), **static routes** you can add or remove with safe apply, the **neighbour (ARP) table** with device names, and **ping, traceroute and DNS lookup** run from the router.
+
 ### Wi-Fi
 - Radios (channel, width, country, power), SSIDs with WPA3, WPA2/WPA3, WPA2, OWE or open, hidden networks, client isolation, a passphrase generator, and connected clients with a **Disconnect** button.
 

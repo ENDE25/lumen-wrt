@@ -37,6 +37,23 @@ function read_arp() {
 	return out;
 }
 
+// Kernel routing tables as raw hex (the browser formats them): IPv4 from /proc/net/route, IPv6 from /proc/net/ipv6_route.
+function read_routes() {
+	let v4 = [], v6 = [], first = true;
+	for (let line in split(readfile('/proc/net/route') ?? '', '\n')) {
+		if (first) { first = false; continue; }
+		let f = split(trim(line), /\s+/);
+		if (length(f) < 8) continue;
+		push(v4, { dev: f[0], dst: f[1], gw: f[2], flags: hex(f[3]), metric: int(f[6]), mask: f[7] });
+	}
+	for (let line in split(readfile('/proc/net/ipv6_route') ?? '', '\n')) {
+		let f = split(trim(line), /\s+/);
+		if (length(f) < 10) continue;
+		push(v6, { dst: f[0], plen: hex(f[1]), gw: f[4], metric: hex(f[5]), flags: hex(f[8]), dev: f[9] });
+	}
+	return { v4, v6 };
+}
+
 function read_bridges() {
 	let out = {};
 	for (let name in lsdir('/sys/class/net') ?? []) {
@@ -350,6 +367,7 @@ const methods = {
 			};
 		}
 	},
+	routes: { call: function(request) { return read_routes(); } },
 	topology: {
 		call: function(request) {
 			let bridges = read_bridges(), fdb = {};

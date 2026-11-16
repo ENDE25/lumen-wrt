@@ -3,11 +3,14 @@
   import AreaChart from '../components/AreaChart.svelte';
   import Drawer from '../components/Drawer.svelte';
   import { live } from '../lib/live.svelte';
+  import NetRouting from './network/NetRouting.svelte';
+  import NetDiag from './network/NetDiag.svelte';
   import { bps, bytes, cidr, duration } from '../lib/format';
   import type { NetDevice, NetInterface } from '../lib/types';
 
   onMount(() => live.start());
 
+  let tab = $state<'overview' | 'routing' | 'diag'>('overview');
   let selIf = $state<NetInterface | null>(null);
   let selDev = $state<NetDevice | null>(null);
   const devs = $derived(Object.values(live.devices).sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true })));
@@ -17,8 +20,17 @@
 </script>
 
 <div class="page">
-  <div class="page-head"><h1>Network</h1></div>
+  <div class="page-head"><h1>Network</h1>
+    <div class="seg" role="tablist">
+      <button role="tab" aria-selected={tab === 'overview'} class:on={tab === 'overview'} onclick={() => (tab = 'overview')}>Overview</button>
+      <button role="tab" aria-selected={tab === 'routing'} class:on={tab === 'routing'} onclick={() => (tab = 'routing')}>Routing</button>
+      <button role="tab" aria-selected={tab === 'diag'} class:on={tab === 'diag'} onclick={() => (tab = 'diag')}>Diagnostics</button>
+    </div>
+  </div>
 
+  {#if tab === 'routing'}<NetRouting />
+  {:else if tab === 'diag'}<NetDiag />
+  {:else}
   <div class="card tw">
     <div class="card-title" style="padding:20px 20px 0"><h2>Interfaces</h2></div>
     <table class="tbl">
@@ -59,6 +71,7 @@
       </tbody>
     </table>
   </div>
+  {/if}
 </div>
 
 <Drawer open={!!curIf} title={curIf ? `Interface ${curIf.interface}` : ''} onclose={() => (selIf = null)}>

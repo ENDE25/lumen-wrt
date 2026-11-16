@@ -351,11 +351,20 @@ export async function mockCall(obj: string, method: string, args: any = {}): Pro
   if (obj.startsWith('hostapd.') && method === 'del_client') return {};
   if (obj === 'file' && method === 'read') { if (args.path in FILES) return { data: FILES[args.path] }; throw new Error('not found'); }
   if (obj === 'file' && method === 'write') { FILES[args.path] = args.data; return {}; }
+  if (k === 'lumen.routes') return { v4: [
+    { dev: 'eth0', dst: '00000000', gw: '0119A8C0', flags: 3, metric: 0, mask: '00000000' },
+    { dev: 'br-lan', dst: '0001A8C0', gw: '00000000', flags: 1, metric: 0, mask: '00FFFFFF' },
+    { dev: 'eth0', dst: '0019A8C0', gw: '00000000', flags: 1, metric: 0, mask: '00FFFFFF' },
+    { dev: 'wg0', dst: '000A0A0A', gw: '00000000', flags: 1, metric: 0, mask: '00FFFFFF' }],
+    v6: [{ dev: 'br-lan', dst: 'fd8eb34b6cf400000000000000000000', plen: 64, gw: '0'.repeat(32), metric: 1024, flags: 1 }, { dev: 'eth0', dst: '0'.repeat(32), plen: 0, gw: 'fe800000000000000000000000000001', metric: 1024, flags: 3 }] };
   if (k === 'luci.setPassword') return {};
   if (k === 'luci.getTimezones') return { 'Europe/Madrid': { tzstring: 'CET-1CEST,M3.5.0,M10.5.0/3' }, 'Europe/London': { tzstring: 'GMT0BST,M3.5.0/1,M10.5.0' }, UTC: { tzstring: 'UTC0' }, 'America/New_York': { tzstring: 'EST5EDT,M3.2.0,M11.1.0' } };
   if (k === 'rc.list') return INIT;
   if (k === 'rc.init') { const i = INIT[args.name]; if (i) { if (args.action === 'enable') i.enabled = true; if (args.action === 'disable') i.enabled = false; if (args.action === 'stop') i.running = false; if (args.action === 'start' || args.action === 'restart') i.running = true; } return {}; }
   if (obj === 'file' && method === 'exec') {
+    if (/ping/.test(args.command)) return { code: 0, stdout: `PING ${args.params.at(-1)} (93.184.216.34): 56 data bytes\n64 bytes from 93.184.216.34: seq=0 ttl=57 time=11.8 ms\n64 bytes from 93.184.216.34: seq=1 ttl=57 time=12.1 ms\n64 bytes from 93.184.216.34: seq=2 ttl=57 time=11.5 ms\n\n--- ${args.params.at(-1)} ping statistics ---\n3 packets transmitted, 3 packets received, 0% packet loss\nround-trip min/avg/max = 11.5/11.8/12.1 ms\n` };
+    if (/traceroute/.test(args.command)) return { code: 0, stdout: 'traceroute to example.com (93.184.216.34), 15 hops max, 46 byte packets\n 1  192.168.1.1  0.4 ms\n 2  10.20.0.1  4.2 ms\n 3  93.184.216.34  11.9 ms\n' };
+    if (/nslookup/.test(args.command)) return { code: 0, stdout: 'Server:\t\t127.0.0.1\nAddress:\t127.0.0.1:53\n\nName:\t' + args.params[0] + '\nAddress: 93.184.216.34\n' };
     if (args.command === '/bin/tar') return { code: 0, stdout: 'etc/config/network\netc/config/wireless\netc/config/firewall\netc/config/dhcp\netc/config/system\netc/config/lumen\netc/dropbear/authorized_keys\netc/passwd\netc/shadow\n' };
     return { code: 0, stdout: '' };
   }
