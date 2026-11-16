@@ -22,6 +22,11 @@ in one lightweight web app that installs with a single command.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/dashboard-dark.png">
+  <img alt="Dashboard" src="docs/screenshots/dashboard-light.png" width="100%">
+</picture>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/dashboard-dark.png">
   <img alt="Lumen dashboard" src="docs/screenshots/dashboard-light.png" width="100%">
 </picture>
 
