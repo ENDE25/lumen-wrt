@@ -10,7 +10,7 @@
   <div class="site"><span class="dot" class:ok class:bad={!ok}></span><strong>{hostname || 'Lumen'}</strong></div>
   <span class="app">Lumen</span>
   <div class="right">
-    {#if updates.available}<a class="pill upd" href="#/system" title="A new version of Lumen is available">Update available · v{updates.latest?.version}</a>{/if}
+    {#if updates.available}<a class="pill upd" href="#/updates" title="A new version of Lumen is available">Update available · v{updates.latest?.version}</a>{/if}
     {#if MOCK}<span class="pill">Demo mode</span>{/if}
     {#if live.error}<span class="pill" style="color:var(--bad)">Router unreachable</span>{/if}
   </div>

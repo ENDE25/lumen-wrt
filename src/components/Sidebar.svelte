@@ -4,22 +4,29 @@
   import { theme } from '../lib/theme.svelte';
   import { logout, MOCK } from '../lib/ubus';
 
-  const items = [
-    { id: 'dashboard', icon: 'dashboard', label: 'Dashboard' },
-    { id: 'map', icon: 'network', label: 'Network Map' },
-    { id: 'traffic', icon: 'stats', label: 'Traffic' },
-    { id: 'network', icon: 'devices', label: 'Network' },
-    { id: 'clients', icon: 'clients', label: 'Clients' },
-    { id: 'wifi', icon: 'wifi', label: 'Wi-Fi' },
-    { id: 'firewall', icon: 'shield', label: 'Firewall' },
-    { id: 'dhcp', icon: 'dns', label: 'DHCP & DNS' },
-    { id: 'services', icon: 'services', label: 'Services' },
-    { id: 'software', icon: 'package', label: 'Software' },
-    { id: 'logs', icon: 'logs', label: 'Logs' },
-    { id: 'backup', icon: 'down', label: 'Backup & Firmware' },
-    { id: 'admin', icon: 'router', label: 'Administration' },
-    { id: 'system', icon: 'settings', label: 'System' },
+  // Flat list, grouped by thin dividers: Monitor / Network / System.
+  const groups = [
+    [
+      { id: 'dashboard', icon: 'dashboard', label: 'Dashboard' },
+      { id: 'map', icon: 'network', label: 'Network Map' },
+      { id: 'traffic', icon: 'stats', label: 'Traffic' },
+      { id: 'clients', icon: 'clients', label: 'Clients' },
+      { id: 'logs', icon: 'logs', label: 'Logs' },
+    ],
+    [
+      { id: 'network', icon: 'devices', label: 'Network' },
+      { id: 'wifi', icon: 'wifi', label: 'Wi-Fi' },
+      { id: 'firewall', icon: 'shield', label: 'Firewall' },
+      { id: 'dhcp', icon: 'dns', label: 'DHCP & DNS' },
+    ],
+    [
+      { id: 'updates', icon: 'package', label: 'Updates' },
+      { id: 'services', icon: 'services', label: 'Services' },
+      { id: 'backup', icon: 'down', label: 'Backup' },
+      { id: 'settings', icon: 'settings', label: 'Settings' },
+    ],
   ];
+
 </script>
 
 <nav class="rail" aria-label="Main">
@@ -27,11 +34,14 @@
     <svg width="34" height="34" viewBox="0 0 32 32"><rect width="32" height="32" rx="9" fill="var(--accent)"/><circle cx="16" cy="16" r="6" fill="none" stroke="#fff" stroke-width="2.4"/><circle cx="16" cy="16" r="1.8" fill="#fff"/></svg>
   </a>
   <div class="items">
-    {#each items as it}
+    {#each groups as g, gi}
+      {#if gi}<hr class="sep" />{/if}
+      {#each g as it}
       <a href={`#/${it.id}`} class:active={router.path === it.id} aria-label={it.label} aria-current={router.path === it.id ? 'page' : undefined}>
         <Icon name={it.icon} size={22} />
         <span class="tip">{it.label}</span>
       </a>
+      {/each}
     {/each}
   </div>
   <div class="foot">
@@ -48,6 +58,7 @@
   }
   .items, .foot { display: flex; flex-direction: column; gap: 6px; align-items: center; }
   .items { flex: 1; margin-top: 6px; }
+  .sep { width: 26px; border: 0; border-top: 1px solid var(--border); margin: 4px 0; }
   a, button {
     position: relative; width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center;
     color: var(--text-2); background: none; border: 0; transition: background .12s, color .12s;
@@ -66,5 +77,6 @@
     .rail { inset: auto 0 0 0; width: auto; height: 62px; flex-direction: row; border-right: 0; border-top: 1px solid var(--border); padding: 0 8px; justify-content: space-around; gap: 0; }
     .logo, .foot, .tip { display: none; }
     .items { flex-direction: row; margin: 0; flex: 1; justify-content: space-around; }
+    .sep { display: none; }
   }
 </style>

@@ -107,3 +107,12 @@ export async function downloadBlob(url: string, onProgress: (frac: number) => vo
   }
   return new Blob(parts);
 }
+
+/** After a flash, restore or reset: wait for the router to go away and come back, then reload (or go to LuCI after a reset). */
+export async function rebootAndReload(kind: 'restore' | 'flash' | 'reset'): Promise<boolean> {
+  if (!(await waitForReboot(kind === 'flash' ? 900000 : 300000))) return false;
+  try { sessionStorage.clear(); } catch { /* ignore */ }
+  if (kind === 'reset') location.href = '/cgi-bin/luci/';   // a reset router has no Lumen and no password
+  else location.reload();
+  return true;
+}

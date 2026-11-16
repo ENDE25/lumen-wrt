@@ -98,19 +98,17 @@ in light and dark themes, on desktop and phone.
 ### DHCP & DNS
 - DHCP pools per interface, upstream DNS, rebinding protection, and **static IP reservations** (add them straight from a known client).
 
-### Software
-- Browse **installed packages and available updates**, search the repositories (about 11 000 packages), and install, remove or upgrade, always with a **preview of exactly what will change** and a live log.
-- Checks whether a **newer OpenWrt release** exists for your router.
+### Updates
+- **One page for everything that updates**: the OpenWrt release (Lumen downloads the official image for your device in your browser, verifies its checksum and sends it to the router, or you can upload your own sysupgrade image), **packages** (browse installed ones and available updates, search about 11 000, install, remove or upgrade, always with a **preview of exactly what will change**), and **Lumen itself**. The router checks every firmware image first, and you choose whether to keep your settings.
 
-### Backup & firmware
-- **Download and restore** configuration backups, **upgrade to the latest official OpenWrt release** (Lumen finds the image for your device, downloads it in your browser, verifies its checksum and sends it to the router), or **flash your own sysupgrade image**. The router checks every image first, and you choose whether to keep your settings. You can also **reset to factory defaults**.
+### Services
+- Every startup script with its **running / failed state** (and exit code), **start at boot**, start / stop / restart, and **scheduled tasks** (cron).
 
-### Administration
-- **Root password**, **SSH access** (port, password login) and **SSH keys**, with a guard against locking yourself out.
-- **Hostname, time zone and NTP**, **startup scripts** (start at boot, start, restart, stop), **scheduled tasks** (cron) and **LED actions** (network activity, blink, always on).
+### Backup
+- **Download and restore** configuration backups and **reset to factory defaults**.
 
-### System
-- **Services** with running / failed state, **logs**, hardware details, temperatures, reboot, and **Lumen's own update and uninstall**.
+### Settings
+- **Hostname, time zone and NTP**, **root password**, **SSH access and keys** (with a guard against locking yourself out), **LED actions**, hardware details, temperatures and reboot.
 
 <br>
 
@@ -139,7 +137,7 @@ in light and dark themes, on desktop and phone.
   </tr>
   <tr>
     <td width="50%"><a href="docs/screenshots/logs.png"><img alt="Logs" src="docs/screenshots/logs.png"></a><br><b>Logs</b><br><sub>The system log with a live filter.</sub></td>
-    <td width="50%"><a href="docs/screenshots/system.png"><img alt="System" src="docs/screenshots/system.png"></a><br><b>System</b><br><sub>Hardware, temperatures, power, and Lumen's own update and uninstall.</sub></td>
+    <td width="50%"><a href="docs/screenshots/system.png"><img alt="System" src="docs/screenshots/system.png"></a><br><b>System</b><br><sub>Hardware, temperatures and power.</sub></td>
   </tr>
 </table>
 
@@ -191,7 +189,7 @@ in light and dark themes, on desktop and phone.
 
 ### Update
 
-- **From the panel:** *System → Lumen*. A blue **Update available** badge appears in the top bar when a newer version
+- **From the panel:** *Updates → Lumen*. A blue **Update available** badge appears in the top bar when a newer version
   is published. Press **Update**; you will be asked to sign in again (rpcd restarts).
 - **From SSH:** `lumen update` (add `--force` to reinstall the current version).
 - Before changing anything the manager backs up the installed files. If the new version does not pass its health
@@ -200,7 +198,7 @@ in light and dark themes, on desktop and phone.
 
 ### Uninstall
 
-- **From the panel:** *System → Lumen → Uninstall…*. Tick *Also delete my settings* to wipe them too.
+- **From the panel:** *Updates → Lumen → Uninstall…*. Tick *Also delete my settings* to wipe them too.
 - **From SSH:** `lumen uninstall`, or `lumen uninstall --purge` to also delete `/etc/config/lumen`.
 
 This removes the panel, the rpcd plugin, the collector service, its nftables table and the manager itself. By default

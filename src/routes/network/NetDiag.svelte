@@ -23,7 +23,7 @@
         try { r = await call('file', 'exec', { command: cmd, params: t.args(host) }); break; }
         catch (e) { if (!(e instanceof UbusError && e.code === 4)) throw e; }
       }
-      if (!r) { out = `${t.label} is not installed on this router. You can add it from the Software page.`; busy = false; return; }
+      if (!r) { out = `${t.label} is not installed on this router. You can add it from Updates → Packages.`; busy = false; return; }
       out = ((r.stdout ?? '') + (r.stderr ?? '')).trim() || (r.code ? `The command ended with code ${r.code} and no output.` : 'No output.');
     } catch (e) { out = 'Could not run the tool: ' + (e instanceof Error ? e.message : String(e)); }
     busy = false;

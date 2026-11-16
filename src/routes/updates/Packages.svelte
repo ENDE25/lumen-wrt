@@ -1,12 +1,12 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
-  import Icon from '../components/Icon.svelte';
-  import Drawer from '../components/Drawer.svelte';
-  import { getBoard } from '../lib/api';
-  import { bytes, duration } from '../lib/format';
-  import { fetchVersions, firmwareStatus, type Versions } from '../lib/firmware';
-  import { getInstalled, getJob, getUpgradable, planPackages, runPackages, searchPackages, type PkgAction, type Pkg, type PkgJob, type Upgradable } from '../lib/packages';
-  import type { Board } from '../lib/types';
+  import Icon from '../../components/Icon.svelte';
+  import Drawer from '../../components/Drawer.svelte';
+  import { bytes, duration } from '../../lib/format';
+  import { getInstalled, getJob, getUpgradable, planPackages, runPackages, searchPackages, type PkgAction, type Pkg, type PkgJob, type Upgradable } from '../../lib/packages';
+
+  let { count = $bindable<number | null>(null) }: { count?: number | null } = $props();
+  $effect(() => { count = loaded ? upgradable.length : null; });
 
   type Tab = 'updates' | 'installed' | 'install';
   let tab = $state<Tab>('updates');
@@ -15,14 +15,6 @@
   let loaded = $state(false);
   let err = $state('');
   let notice = $state('');
-
-  // ---- firmware
-  let board = $state<Board | null>(null);
-  let versions = $state<Versions | null>(null);
-  let checked = $state(false);
-  const current = $derived(board?.release.version ?? '');
-  const fw = $derived(firmwareStatus(current, versions));
-  const series = (v: string) => v.split('.').slice(0, 2).join('.');
 
   // ---- lists
   async function loadLists() {
@@ -65,8 +57,6 @@
 
   onMount(() => {
     loadLists();
-    getBoard().then((b) => (board = b)).catch(() => {});
-    fetchVersions().then((v) => { versions = v; checked = true; });
     getJob().then((j) => { if (j.state === 'running') { showJob = true; job = j; follow(); } else if (j.state === 'done' && j.ended && Date.now() / 1000 - j.ended < 120) { showJob = true; job = j; } }).catch(() => {});
   });
 
@@ -109,47 +99,13 @@
   const took = $derived(job.started && job.ended ? duration(job.ended - job.started) : '');
 </script>
 
-<div class="page">
-  <div class="page-head">
-    <h1>Software</h1>
+<div class="pk" id="packages">
+  <div class="phead">
+    <h2>Packages</h2>
     <button class="btn" disabled={busy} onclick={() => start('update')}><Icon name="refresh" size={16} />Update package lists</button>
   </div>
 
   {#if notice}<p class="notice" role="alert"><Icon name="alert" size={16} />{notice}<button class="x" onclick={() => (notice = '')} aria-label="Dismiss">×</button></p>{/if}
-
-  <!-- ===== Firmware ===== -->
-  <div class="card fw">
-    <div class="fwhead">
-      <span class="fico"><Icon name="router" size={24} /></span>
-      <div class="fwt">
-        <h2>OpenWrt {current || '…'}</h2>
-        <p class="muted">{board?.release.description ?? ''}{board ? ` · ${board.release.target}` : ''}</p>
-      </div>
-      {#if !checked}<span class="pill">Checking for new releases…</span>
-      {:else if fw.kind === 'current'}<span class="pill ok"><i class="dot ok"></i>Up to date</span>
-      {:else if fw.kind === 'patch' || fw.kind === 'series'}<span class="pill warn"><i class="dot warn"></i>{fw.latest} is available</span>
-      {:else if fw.kind === 'ahead'}<span class="pill">Newer than the latest stable release</span>
-      {:else}<span class="pill">Couldn't check for releases</span>{/if}
-    </div>
-    <div class="fwbody">
-      {#if fw.kind === 'current'}
-        <p class="muted">You're running the latest stable release ({fw.latest}). Package updates within it are listed below.</p>
-      {:else if fw.kind === 'patch'}
-        <p class="muted">A newer release of the {series(current)} series is out. It usually carries security and bug fixes.</p>
-      {:else if fw.kind === 'series'}
-        <p class="muted">A newer release series exists. Upgrading across series is a bigger step: read the release notes first, and keep a backup.</p>
-      {:else if fw.kind === 'unknown' && checked}
-        <p class="muted">Your browser couldn't reach <code>downloads.openwrt.org</code>. You can still manage packages below.</p>
-      {/if}
-      {#if versions && (fw.kind === 'patch' || fw.kind === 'series')}
-        <div class="links">
-          <a href="https://openwrt.org/releases/{series(fw.latest)}/notes-{fw.latest}" target="_blank" rel="noreferrer">Release notes</a>
-          <a href="#/backup">Install it</a>
-        </div>
-        <p class="faint small">Lumen can install it for you: open <a href="#/backup">Backup &amp; Firmware</a>, which downloads the official image for your device and checks it before flashing.</p>
-      {/if}
-    </div>
-  </div>
 
   <!-- ===== Running / last job ===== -->
   {#if showJob && job.state !== 'idle'}
@@ -269,16 +225,9 @@
 </Drawer>
 
 <style>
+  .phead { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 4px 0 14px; } .phead h2 { font-size: 17px; font-weight: 650; }
   .notice { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 10px; margin-bottom: 14px; background: color-mix(in srgb, var(--bad) 12%, transparent); color: var(--text); }
   .notice :global(svg) { color: var(--bad); flex: none; } .notice .x { margin-left: auto; background: none; border: 0; font-size: 18px; color: var(--text-2); }
-  .fw { padding: 0; margin-bottom: 16px; overflow: hidden; }
-  .fwhead { display: flex; align-items: center; gap: 14px; padding: 18px 20px; flex-wrap: wrap; }
-  .fico { width: 46px; height: 46px; border-radius: 12px; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; flex: none; }
-  .fwt { flex: 1; min-width: 220px; } .fwt h2 { font-size: 17px; font-weight: 650; } .fwt p { font-size: 13px; }
-  .pill.ok { color: var(--ok); } .pill.warn { color: var(--warn); }
-  .fwbody { padding: 0 20px 18px; display: grid; gap: 10px; } .fwbody p { margin: 0; font-size: 13.5px; }
-  .fwbody code, .job code { background: var(--surface-2); padding: 1px 6px; border-radius: 5px; font-size: 12.5px; }
-  .links { display: flex; gap: 18px; font-size: 13.5px; font-weight: 500; }
   .small { font-size: 12.5px; }
   .job { margin-bottom: 16px; padding: 0; overflow: hidden; }
   .jh { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }

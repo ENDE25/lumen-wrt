@@ -12,12 +12,11 @@
   import Firewall from './routes/Firewall.svelte';
   import Wifi from './routes/Wifi.svelte';
   import Traffic from './routes/Traffic.svelte';
-  import Software from './routes/Software.svelte';
   import Services from './routes/Services.svelte';
   import Logs from './routes/Logs.svelte';
-  import System from './routes/System.svelte';
   import Backup from './routes/Backup.svelte';
-  import Admin from './routes/Admin.svelte';
+  import Updates from './routes/Updates.svelte';
+  import Settings from './routes/Settings.svelte';
   import { router } from './lib/router.svelte';
   import { hasSession, onAuthLost } from './lib/ubus';
   import { getBoard } from './lib/api';
@@ -45,11 +44,11 @@
     const pending = (() => { try { return JSON.parse(sessionStorage.getItem('lumen.pending') ?? 'null'); } catch { return null; } })();
     try { sessionStorage.removeItem('lumen.pending'); } catch { /* ignore */ }
     updates.refresh().then(() => {
-      if (pending?.action === 'update' && pending.to) changes.note = updates.current === pending.to ? `Lumen updated to v${pending.to}` : 'The update did not complete. See System → Lumen.';
+      if (pending?.action === 'update' && pending.to) changes.note = updates.current === pending.to ? `Lumen updated to v${pending.to}` : 'The update did not complete. See Updates.';
     });
   });
 
-  const pages = { dashboard: Dashboard, clients: Clients, network: Network, map: NetworkMap, dhcp: Dhcp, firewall: Firewall, wifi: Wifi, traffic: Traffic, software: Software, services: Services, logs: Logs, backup: Backup, admin: Admin, system: System } as const;
+  const pages = { dashboard: Dashboard, clients: Clients, network: Network, map: NetworkMap, dhcp: Dhcp, firewall: Firewall, wifi: Wifi, traffic: Traffic, updates: Updates, services: Services, logs: Logs, backup: Backup, settings: Settings } as const;
   const Page = $derived(pages[router.path as keyof typeof pages] ?? Dashboard);
 </script>
 
