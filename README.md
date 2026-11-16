@@ -133,7 +133,7 @@ in light and dark themes, on desktop and phone.
   </tr>
   <tr>
     <td width="50%"><a href="docs/screenshots/services.png"><img alt="Services" src="docs/screenshots/services.png"></a><br><b>Services</b><br><sub>Health of every service at a glance.</sub></td>
-    <td width="50%"><a href="docs/screenshots/software.png"><img alt="Software" src="docs/screenshots/software.png"></a><br><b>Software</b><br><sub>Firmware release check and package updates.</sub></td>
+    <td width="50%"><a href="docs/screenshots/software.png"><img alt="Updates" src="docs/screenshots/software.png"></a><br><b>Updates</b><br><sub>OpenWrt release, packages and Lumen in one place.</sub></td>
   </tr>
   <tr>
     <td width="50%"><a href="docs/screenshots/logs.png"><img alt="Logs" src="docs/screenshots/logs.png"></a><br><b>Logs</b><br><sub>The system log with a live filter.</sub></td>
@@ -217,7 +217,7 @@ LuCI and the rest of OpenWrt are never touched.
 | Clients, Wi-Fi or DHCP pages show "Object not found" / "Access denied" | LuCI's base packages are missing (`apk add luci-base` or `opkg install luci-base`). |
 | Login fails or the page is blank | Check `ubus call lumen stats` and `uci get uhttpd.main.ubus_prefix` (should be `/ubus`); `/etc/init.d/rpcd restart` often helps. |
 | Traffic → Clients is empty | Per-client accounting counts traffic *routed through* the router, and under-counts with flow offloading. |
-| Software cannot download packages | The router needs working DNS to reach the package repositories. |
+| Package updates fail to download | The router needs working DNS to reach the package repositories. |
 | Use a different release source | `uci set lumen.update.url=https://…/release && uci commit lumen` |
 
 <br>
@@ -318,7 +318,7 @@ The signing key is pinned on first install, so an update signed with any other k
 | Platform | Status |
 |---|---|
 | **OpenWrt 25.12 (apk)** | Tested, everything works (OpenWrt One and x86) |
-| OpenWrt 24.10 and earlier (opkg) | Expected to work except the **Software** page, which needs `apk`; not yet verified |
+| OpenWrt 24.10 and earlier (opkg) | Expected to work except the package management (Updates → Packages), which needs `apk`; not yet verified |
 | Routers without LuCI base packages | Not supported yet (see roadmap) |
 | Architectures | Any: the panel and plugins are architecture-independent |
 
@@ -347,7 +347,7 @@ src/
   lib/          ubus client, data layer, UCI + safe-apply, vendor lookup, live poller, stores
   components/   charts, drawers, toggles, sidebar, top bar, brand glyphs
   routes/       one file per page (Dashboard, Network Map, Traffic, Clients, Wi-Fi,
-                Firewall, DHCP & DNS, Services, Software, Logs, System)
+                Firewall, DHCP & DNS, Updates, Services, Backup, Settings, Logs)
   styles/       design tokens (light and dark) and base styles
 openwrt/
   rpcd/         the rpcd plugin (ucode)
