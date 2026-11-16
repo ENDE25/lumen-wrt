@@ -49,11 +49,17 @@
   });
 
   const pages = { dashboard: Dashboard, clients: Clients, network: Network, map: NetworkMap, dhcp: Dhcp, firewall: Firewall, wifi: Wifi, traffic: Traffic, updates: Updates, services: Services, logs: Logs, backup: Backup, settings: Settings } as const;
+  // A short reveal after signing in: the panel comes into focus, the rail slides in, cards rise one after another.
+  function welcome() {
+    authed = true;
+    document.body.classList.add('reveal');
+    setTimeout(() => document.body.classList.remove('reveal'), 1800);
+  }
   const Page = $derived(pages[router.path as keyof typeof pages] ?? Dashboard);
 </script>
 
 {#if !authed}
-  <Login onok={() => (authed = true)} />
+  <Login onok={welcome} />
 {:else}
   <Sidebar />
   <div class="shell">
@@ -64,6 +70,21 @@
 {/if}
 
 <style>
+  @keyframes unblur { from { opacity: 0; filter: blur(14px); transform: scale(.985) translateY(10px); } to { opacity: 1; filter: blur(0); transform: none; } }
+  @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes slide { from { opacity: 0; transform: translateX(-14px); } to { opacity: 1; transform: none; } }
+  @keyframes rise { from { opacity: 0; transform: translateY(14px); filter: blur(5px); } to { opacity: 1; transform: none; filter: blur(0); } }
+  :global(body.reveal main) { animation: unblur .75s cubic-bezier(.2, .7, .2, 1) both; }
+  :global(body.reveal header) { animation: fade .5s ease-out both; }
+  :global(body.reveal .rail) { animation: slide .6s cubic-bezier(.2, .7, .2, 1) .1s both; }
+  :global(body.reveal main .card) { animation: rise .65s cubic-bezier(.2, .7, .2, 1) both; }
+  :global(body.reveal main .card:nth-child(2)) { animation-delay: .06s; }
+  :global(body.reveal main .card:nth-child(3)) { animation-delay: .12s; }
+  :global(body.reveal main .card:nth-child(4)) { animation-delay: .18s; }
+  :global(body.reveal main .card:nth-child(n+5)) { animation-delay: .24s; }
+  @media (prefers-reduced-motion: reduce) {
+    :global(body.reveal main), :global(body.reveal header), :global(body.reveal .rail), :global(body.reveal main .card) { animation: none; }
+  }
   .shell { margin-left: var(--rail); min-height: 100vh; }
   @media (max-width: 760px) { .shell { margin-left: 0; } }
 </style>
