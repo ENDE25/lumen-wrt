@@ -370,6 +370,12 @@ public/         favicon and the compressed vendor table
 
 <br>
 
+## License
+
+The source is open to read, audit and use on your own routers, but it is **not** free to reuse: copying, modifying or redistributing it needs permission. See [LICENSE](LICENSE) for the exact terms.
+
+<br>
+
 ## Credits
 
 Vendor names come from the public IEEE registries. Brand logos are single-colour marks from

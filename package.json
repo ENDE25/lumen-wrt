@@ -2,6 +2,7 @@
   "name": "lumen-wrt",
   "version": "0.15.0",
   "private": true,
+  "license": "SEE LICENSE IN LICENSE",
   "type": "module",
   "description": "Lumen: a modern admin panel for OpenWrt",
   "scripts": {
