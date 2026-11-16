@@ -8,7 +8,7 @@ by professional network consoles: a compact icon rail, cards, live charts and sl
 
 <img width="1900" height="1058" alt="image" src="https://github.com/user-attachments/assets/170e5d76-09ca-4ba7-91ac-7144c47c2e2b" />
 <img width="1891" height="1059" alt="image" src="https://github.com/user-attachments/assets/ce1f24fa-d771-458f-8b09-c0abb4bd996e" />
-<img width="1895" height="1058" alt="image" src="https://github.com/user-attachments/assets/a6dbb326-4bb3-4d5f-ad8a-2a365e1a0fb3" />
+<img width="1894" height="1055" alt="image" src="https://github.com/user-attachments/assets/c3e78c36-38f9-4564-9e6e-5fb4469edfc2" />
 <img width="1896" height="1053" alt="image" src="https://github.com/user-attachments/assets/128fb7a2-3db5-478d-81ce-f8c33957ec92" />
 <img width="1897" height="1059" alt="image" src="https://github.com/user-attachments/assets/59c7af96-fbc3-4d44-bc50-3e3f9630ca3d" />
 <img width="1900" height="1058" alt="image" src="https://github.com/user-attachments/assets/df87012a-9714-481d-86db-39a49dcbffb6" />
