@@ -44,11 +44,13 @@
   const rootUsed = $derived(sys ? pct(sys.root.used, sys.root.total) : 0);
   const gw = $derived(wan?.route?.find((r) => r.target === '0.0.0.0')?.nexthop);
 
+  // Distinct, friendly hues (no purple: the panel's accents are blue and green).
   const KIND: Record<string, [string, string]> = {
-    phone: ['Phones', '#28a5ee'], laptop: ['Laptops', '#006fff'], desktop: ['Desktops', '#0a3fa8'],
-    tv: ['TV', '#f09a14'], printer: ['Printers', '#17a860'], iot: ['IoT', '#84cc16'],
-    server: ['Servers', '#e5484d'], router: ['Network', '#5d6675'], console: ['Consoles', '#0f9fa8'], camera: ['Cameras', '#c2410c'], speaker: ['Speakers', '#92643c'], unknown: ['Other', '#9aa3b2'],
+    phone: ['Phones', '#3b82f6'], laptop: ['Laptops', '#06b6d4'], desktop: ['Desktops', '#10b981'],
+    tv: ['TV', '#f59e0b'], printer: ['Printers', '#84cc16'], iot: ['IoT', '#f97316'],
+    server: ['Servers', '#ef4444'], router: ['Network', '#64748b'], console: ['Consoles', '#ec4899'], camera: ['Cameras', '#0d9488'], speaker: ['Speakers', '#b45309'], unknown: ['Other', '#a8b3c4'],
   };
+
   const segs = $derived.by(() => {
     const m = new Map<string, number>();
     clients.forEach((c) => m.set(c.kind, (m.get(c.kind) ?? 0) + 1));

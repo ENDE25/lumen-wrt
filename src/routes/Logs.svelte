@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import Icon from '../components/Icon.svelte';
   import { getLog, type LogLine } from '../lib/api';
+  import { call } from '../lib/ubus';
 
   let lines = $state<LogLine[]>([]);
   let q = $state('');
@@ -12,6 +13,15 @@
     try { lines = await getLog(); err = ''; } catch (e) { err = e instanceof Error ? e.message : String(e); }
   }
   onMount(() => { load(); const t = setInterval(() => auto && load(), 5000); return () => clearInterval(t); });
+
+  let clearAsk = $state(false), clearing = $state(false);
+  async function clearLog() {
+    if (!clearAsk) { clearAsk = true; return; }
+    clearAsk = false; clearing = true;
+    try { await call('lumen', 'log_clear'); } catch (e) { err = e instanceof Error ? e.message : String(e); }
+    await new Promise((r) => setTimeout(r, 2500));   // the log service restarts; give it a moment
+    await load(); clearing = false;
+  }
 
   const shown = $derived(q ? lines.filter((l) => l.msg.toLowerCase().includes(q.toLowerCase())) : lines);
   const tone = (m: string) => /\berr|fail|denied|crit|alert/i.test(m) ? 'bad' : /warn/i.test(m) ? 'warn' : '';
@@ -24,6 +34,12 @@
       <div class="search"><Icon name="search" size={16} /><input class="input" placeholder="Filter" bind:value={q} aria-label="Filter logs" /></div>
       <label class="chk"><input type="checkbox" bind:checked={auto} /> Auto-refresh</label>
       <button class="btn" onclick={load}><Icon name="refresh" size={16} />Reload</button>
+      {#if clearAsk}
+        <span class="muted small">Empties the whole system log. Nothing else changes.</span>
+        <button class="btn danger" onclick={clearLog}>Confirm: clear log</button><button class="btn" onclick={() => (clearAsk = false)}>Cancel</button>
+      {:else}
+        <button class="btn" disabled={clearing || !lines.length} onclick={clearLog}><Icon name={clearing ? 'refresh' : 'trash'} size={16} />{clearing ? 'Clearing…' : 'Clear log'}</button>
+      {/if}
     </div>
   </div>
   <div class="card log">

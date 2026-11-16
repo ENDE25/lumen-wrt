@@ -43,13 +43,15 @@
     <label><span>Hostname</span><input class="input" bind:value={f.hostname} aria-invalid={!!hostErr} />
       {#if hostErr}<small class="bad">{hostErr}</small>{/if}</label>
     <label><span>Time zone</span>
-      <select class="input" bind:value={f.zone}>
-        {#if zones.length === 0}<option value={f.zone}>{f.zone}</option>{/if}
-        {#each zones as z}<option value={z.name}>{z.name}</option>{/each}
-      </select></label>
+      {#key zones.length}
+        <select class="input" bind:value={f.zone}>
+          {#if !zones.some((z) => z.name === f.zone)}<option value={f.zone}>{f.zone || 'Not set'}</option>{/if}
+          {#each zones as z}<option value={z.name}>{z.name}</option>{/each}
+        </select>
+      {/key}</label>
     <div class="line"><Toggle bind:checked={f.ntp} label="Keep the clock in sync (NTP client)" /></div>
     {#if f.ntp}
-      <label><span>Time servers <small class="faint">one per line</small></span><textarea class="input" rows="4" bind:value={f.servers}></textarea></label>
+      <label><span>Time servers <small class="faint">one per line</small></span><textarea class="input" rows="6" bind:value={f.servers}></textarea></label>
       <div class="line"><Toggle bind:checked={f.serve} label="Also serve time to devices on my network" /></div>
     {/if}
     <div class="actions"><button class="btn primary" disabled={!dirty || !!hostErr} onclick={save}>Save</button></div>
@@ -57,9 +59,9 @@
 {/if}
 
 <style>
-  .form { max-width: 640px; display: grid; gap: 16px; }
+  .form { max-width: 760px; display: grid; gap: 16px; }
   label { display: grid; gap: 6px; } label > span { font-size: 13px; color: var(--text-2); }
-  textarea.input { font-family: var(--mono, monospace); resize: vertical; }
+  textarea.input { font-family: var(--mono, monospace); resize: vertical; height: auto; min-height: 130px; padding: 10px 12px; line-height: 1.5; }
   .bad { color: var(--bad, #dc2626); }
   .actions { display: flex; gap: 10px; }
 </style>
