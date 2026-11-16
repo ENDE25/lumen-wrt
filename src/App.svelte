@@ -16,6 +16,7 @@
   import Services from './routes/Services.svelte';
   import Logs from './routes/Logs.svelte';
   import System from './routes/System.svelte';
+  import Backup from './routes/Backup.svelte';
   import { router } from './lib/router.svelte';
   import { hasSession, onAuthLost } from './lib/ubus';
   import { getBoard } from './lib/api';
@@ -38,7 +39,7 @@
     });
   });
 
-  const pages = { dashboard: Dashboard, clients: Clients, network: Network, map: NetworkMap, dhcp: Dhcp, firewall: Firewall, wifi: Wifi, traffic: Traffic, software: Software, services: Services, logs: Logs, system: System } as const;
+  const pages = { dashboard: Dashboard, clients: Clients, network: Network, map: NetworkMap, dhcp: Dhcp, firewall: Firewall, wifi: Wifi, traffic: Traffic, software: Software, services: Services, logs: Logs, backup: Backup, system: System } as const;
   const Page = $derived(pages[router.path as keyof typeof pages] ?? Dashboard);
 </script>
 

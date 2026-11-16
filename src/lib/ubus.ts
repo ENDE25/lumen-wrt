@@ -18,6 +18,7 @@ type Listener = () => void;
 const authLost = new Set<Listener>();
 export const onAuthLost = (fn: Listener) => { authLost.add(fn); return () => authLost.delete(fn); };
 
+export const sessionId = () => sid ?? NULL_SESSION;
 export const hasSession = () => MOCK || sid !== null;
 
 function store(v: string | null) {

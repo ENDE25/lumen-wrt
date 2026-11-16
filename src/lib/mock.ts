@@ -342,7 +342,11 @@ export async function mockCall(obj: string, method: string, args: any = {}): Pro
       return {};
   }
   if (obj.startsWith('hostapd.') && method === 'del_client') return {};
-  if (obj === 'file' && method === 'exec') return { code: 0, stdout: '' };
+  if (obj === 'file' && method === 'exec') {
+    if (args.command === '/bin/tar') return { code: 0, stdout: 'etc/config/network\netc/config/wireless\netc/config/firewall\netc/config/dhcp\netc/config/system\netc/config/lumen\netc/dropbear/authorized_keys\netc/passwd\netc/shadow\n' };
+    return { code: 0, stdout: '' };
+  }
+  if (k === 'system.validate_firmware_image') return { valid: true, forceable: false, allow_backup: true, tests: { fwtool_signature: true, fwtool_device_match: true } };
   console.warn('[mock] unhandled', k, args);
   throw new Error('mock: unhandled ' + k);
 }
