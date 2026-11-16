@@ -34,7 +34,7 @@
 <div class="card head">
   <div>
     <h2>Blocked traffic</h2>
-    <p class="muted small">Connections your firewall dropped or rejected on the internet-facing zone{wanZones.length === 1 ? '' : 's'} {wanZones.map((z) => z.name).join(', ') || '(none found)'}. Counted from the system log only while this page is open, so nothing runs in the background.</p>
+    <p class="muted small">Connections the firewall dropped or rejected on the internet-facing zone{wanZones.length === 1 ? '' : 's'} {wanZones.map((z) => z.name).join(', ') || '(none found)'}, read from the router's system log. The log lives in memory, so older entries disappear and it starts empty after a reboot.</p>
   </div>
   <Toggle checked={on} label={on ? 'Logging on' : 'Logging off'} disabled={!wanZones.length} onchange={setLogging} />
 </div>

@@ -12,7 +12,7 @@
   import type { Client } from '../lib/types';
 
   type Tab = 'forwards' | 'rules' | 'zones' | 'blocked';
-  let tab = $state<Tab>('forwards');
+  let tab = $state<Tab>('blocked');
   let fw = $state<Firewall | null>(null);
   let err = $state('');
   let clients = $state<Client[]>([]);
@@ -37,10 +37,10 @@
   <div class="page-head">
     <h1>Firewall</h1>
     <div class="seg" role="tablist">
-      <button role="tab" aria-selected={tab === 'forwards'} class:on={tab === 'forwards'} onclick={() => (tab = 'forwards')}>Port forwards</button>
+      <button role="tab" aria-selected={tab === 'blocked'} class:on={tab === 'blocked'} onclick={() => (tab = 'blocked')}>Blocked</button>
       <button role="tab" aria-selected={tab === 'rules'} class:on={tab === 'rules'} onclick={() => (tab = 'rules')}>Traffic rules</button>
       <button role="tab" aria-selected={tab === 'zones'} class:on={tab === 'zones'} onclick={() => (tab = 'zones')}>Zones</button>
-      <button role="tab" aria-selected={tab === 'blocked'} class:on={tab === 'blocked'} onclick={() => (tab = 'blocked')}>Blocked</button>
+      <button role="tab" aria-selected={tab === 'forwards'} class:on={tab === 'forwards'} onclick={() => (tab = 'forwards')}>Port forwards</button>
     </div>
   </div>
 
