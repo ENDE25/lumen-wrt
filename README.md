@@ -21,8 +21,8 @@ in one lightweight web app that installs with a single command.
 <br>
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://github.com/user-attachments/assets/ce1f24fa-d771-458f-8b09-c0abb4bd996e">
-  <img alt="Lumen dashboard" src="https://github.com/user-attachments/assets/170e5d76-09ca-4ba7-91ac-7144c47c2e2b" width="100%">
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/dashboard-dark.png">
+  <img alt="Lumen dashboard" src="docs/screenshots/dashboard-light.png" width="100%">
 </picture>
 
 </div>
@@ -85,18 +85,32 @@ in light and dark themes, on desktop and phone.
 
 <table>
   <tr>
-    <td width="50%"><img alt="Network map" src="https://github.com/user-attachments/assets/c3e78c36-38f9-4564-9e6e-5fb4469edfc2"><br><b>Network map</b><br><sub>Internet, router, ports, SSIDs and every device, with Wi-Fi signal.</sub></td>
-    <td width="50%"><img alt="Traffic" src="https://github.com/user-attachments/assets/128fb7a2-3db5-478d-81ce-f8c33957ec92"><br><b>Traffic</b><br><sub>History per interface and a breakdown by device.</sub></td>
+    <td width="50%"><a href="docs/screenshots/dashboard-light.png"><img alt="Dashboard" src="docs/screenshots/dashboard-light.png"></a><br><b>Dashboard</b><br><sub>Live overview: throughput, CPU, memory, ports, clients and services.</sub></td>
+    <td width="50%"><a href="docs/screenshots/network-map.png"><img alt="Network map" src="docs/screenshots/network-map.png"></a><br><b>Network map</b><br><sub>Internet, router, ports, SSIDs and every device, with Wi-Fi signal.</sub></td>
   </tr>
   <tr>
-    <td width="50%"><img alt="Clients" src="https://github.com/user-attachments/assets/59c7af96-fbc3-4d44-bc50-3e3f9630ca3d"><br><b>Clients</b><br><sub>Vendor, type, connection, signal and last-24h usage.</sub></td>
-    <td width="50%"><img alt="Wi-Fi" src="https://github.com/user-attachments/assets/df87012a-9714-481d-86db-39a49dcbffb6"><br><b>Wi-Fi</b><br><sub>Radios, SSIDs and connected clients.</sub></td>
+    <td width="50%"><a href="docs/screenshots/traffic.png"><img alt="Traffic" src="docs/screenshots/traffic.png"></a><br><b>Traffic</b><br><sub>History per interface and a breakdown by device.</sub></td>
+    <td width="50%"><a href="docs/screenshots/network.png"><img alt="Network" src="docs/screenshots/network.png"></a><br><b>Network</b><br><sub>Interfaces and devices with live rates.</sub></td>
   </tr>
   <tr>
-    <td width="50%"><img alt="Software" src="https://github.com/user-attachments/assets/b4f6f8ea-716e-4cec-b3b3-70231e567921"><br><b>Software</b><br><sub>Firmware release check and package updates.</sub></td>
-    <td width="50%"><img alt="Dark theme" src="https://github.com/user-attachments/assets/ce1f24fa-d771-458f-8b09-c0abb4bd996e"><br><b>Dark theme</b><br><sub>Every page has a light and a dark version.</sub></td>
+    <td width="50%"><a href="docs/screenshots/clients.png"><img alt="Clients" src="docs/screenshots/clients.png"></a><br><b>Clients</b><br><sub>Vendor, type, connection, signal and last-24h usage for every device.</sub></td>
+    <td width="50%"><a href="docs/screenshots/wifi.png"><img alt="Wi-Fi" src="docs/screenshots/wifi.png"></a><br><b>Wi-Fi</b><br><sub>Radios, SSIDs and connected clients.</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><a href="docs/screenshots/firewall.png"><img alt="Firewall" src="docs/screenshots/firewall.png"></a><br><b>Firewall</b><br><sub>Reorderable traffic rules, port forwards and zones.</sub></td>
+    <td width="50%"><a href="docs/screenshots/dhcp-dns.png"><img alt="DHCP & DNS" src="docs/screenshots/dhcp-dns.png"></a><br><b>DHCP &amp; DNS</b><br><sub>DHCP pools, upstream DNS and static reservations.</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><a href="docs/screenshots/services.png"><img alt="Services" src="docs/screenshots/services.png"></a><br><b>Services</b><br><sub>Health of every service at a glance.</sub></td>
+    <td width="50%"><a href="docs/screenshots/software.png"><img alt="Software" src="docs/screenshots/software.png"></a><br><b>Software</b><br><sub>Firmware release check and package updates.</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><a href="docs/screenshots/logs.png"><img alt="Logs" src="docs/screenshots/logs.png"></a><br><b>Logs</b><br><sub>The system log with a live filter.</sub></td>
+    <td width="50%"><a href="docs/screenshots/system.png"><img alt="System" src="docs/screenshots/system.png"></a><br><b>System</b><br><sub>Hardware, temperatures, power, and Lumen's own update and uninstall.</sub></td>
   </tr>
 </table>
+
+<sub>Screenshots are taken on a real OpenWrt One. Device names, addresses and MACs are blurred.</sub>
 
 <br>
 
