@@ -16,7 +16,7 @@ class Changes {
    * @param mode 'auto' confirms as soon as the router answers again (safe for DHCP/DNS);
    *             'manual' leaves the countdown bar for the user (network / wifi / firewall).
    */
-  async apply(ops: UciOp[], mode: 'auto' | 'manual' = 'auto', label = 'Changes applied'): Promise<boolean> {
+  async apply(ops: UciOp[], mode: 'auto' | 'manual' = 'auto', label = 'Changes applied', timeout = TIMEOUT): Promise<boolean> {
     if (!ops.length) return true;
     this.error = ''; this.phase = 'applying';
     const touched = new Set(ops.map((o) => o.config));
@@ -28,7 +28,7 @@ class Changes {
         else if (o.op === 'order') await uciOrder(o.config, o.sections);
         else await uciDelete(o.config, o.section, o.option);
       }
-      await uciApply(TIMEOUT);
+      await uciApply(timeout);
     } catch (e) {
       // Never leave half-staged edits lying around.
       await Promise.all([...touched].map((c) => uciRevert(c).catch(() => {})));
@@ -44,12 +44,19 @@ class Changes {
       catch { /* fall through to manual bar: rollback timer is still running */ }
     }
     this.note = label;
-    this.#countdown();
+    this.#countdown(timeout);
     return true;
   }
 
-  #countdown() {
-    this.phase = 'pending'; this.remaining = TIMEOUT;
+  /** Pick up a pending rollback from another address (the router's IP changed): show the confirm bar until `until` (ms epoch). */
+  resume(until: number, label: string) {
+    const left = Math.round((until - Date.now()) / 1000);
+    if (left > 1) { this.note = label; this.#countdown(left); }
+    else this.note = 'The change was already rolled back because it was not confirmed in time.';
+  }
+
+  #countdown(seconds = TIMEOUT) {
+    this.phase = 'pending'; this.remaining = seconds;
     this.#timer && clearInterval(this.#timer);
     this.#timer = setInterval(() => {
       if (--this.remaining <= 0) { this.#stop(); this.note = 'Time ran out: the changes were rolled back.'; }

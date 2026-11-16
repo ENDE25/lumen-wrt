@@ -5,12 +5,15 @@
   import { live } from '../lib/live.svelte';
   import NetRouting from './network/NetRouting.svelte';
   import NetDiag from './network/NetDiag.svelte';
+  import NetIfaceEdit from './network/NetIfaceEdit.svelte';
+  import { isEditable } from '../lib/netconf';
   import { bps, bytes, cidr, duration } from '../lib/format';
   import type { NetDevice, NetInterface } from '../lib/types';
 
   onMount(() => live.start());
 
   let tab = $state<'overview' | 'routing' | 'diag'>('overview');
+  let editing = $state(false);
   let selIf = $state<NetInterface | null>(null);
   let selDev = $state<NetDevice | null>(null);
   const devs = $derived(Object.values(live.devices).sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true })));
@@ -74,8 +77,10 @@
   {/if}
 </div>
 
-<Drawer open={!!curIf} title={curIf ? `Interface ${curIf.interface}` : ''} onclose={() => (selIf = null)}>
-  {#if curIf}
+<Drawer open={!!curIf} title={curIf ? `Interface ${curIf.interface}` : ''} onclose={() => { selIf = null; editing = false; }}>
+  {#if curIf && editing}
+    <NetIfaceEdit iface={curIf} ondone={() => (editing = false)} />
+  {:else if curIf}
     <div class="stat-row"><span>Status</span><b>{curIf.up ? 'Up' : 'Down'}</b></div>
     <div class="stat-row"><span>Protocol</span><b>{curIf.proto}</b></div>
     <div class="stat-row"><span>Device</span><b class="mono">{curIf.l3_device ?? curIf.device ?? '—'}</b></div>
@@ -83,6 +88,7 @@
     {#each curIf['ipv6-address'] ?? [] as a}<div class="stat-row"><span>IPv6</span><b class="mono">{cidr(a)}</b></div>{/each}
     {#each curIf.route ?? [] as r}<div class="stat-row"><span>Route</span><b class="num">{r.target}/{r.mask} → {r.nexthop}</b></div>{/each}
     {#if curIf['dns-server']?.length}<div class="stat-row"><span>DNS</span><b class="num">{curIf['dns-server'].join(', ')}</b></div>{/if}
+    {#if isEditable(curIf.proto)}<div style="margin-top:16px"><button class="btn" onclick={() => (editing = true)}>Edit settings…</button></div>{/if}
   {/if}
 </Drawer>
 

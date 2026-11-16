@@ -30,6 +30,15 @@
   onMount(() => onAuthLost(() => (authed = false)));
   $effect(() => { if (authed) getBoard().then((b) => (host = b.hostname)).catch(() => {}); });
 
+  // Arriving from the old address after an IP change: ask to confirm the new one before the rollback timer ends.
+  $effect(() => {
+    if (!authed) return;
+    const m = /[?&]confirm=(\d+)/.exec(location.hash);
+    if (!m) return;
+    history.replaceState(null, '', location.pathname + location.hash.replace(/[?&]confirm=\d+/, ''));
+    changes.resume(Number(m[1]), 'Network address changed');
+  });
+
   // After an update rpcd restarts and the session ends; on the next sign-in say how it went.
   $effect(() => {
     if (!authed) return;

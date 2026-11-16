@@ -85,6 +85,10 @@ const UCI: Record<string, Record<string, any>> = {
     cfg01e48a: { '.name': 'cfg01e48a', '.type': 'system', '.anonymous': true, hostname: 'lumen-demo', log_size: '128', zonename: 'Europe/Madrid', timezone: 'CET-1CEST,M3.5.0,M10.5.0/3' },
     ntp: { '.name': 'ntp', '.type': 'timeserver', enabled: '1', enable_server: '0', server: ['0.openwrt.pool.ntp.org', '1.openwrt.pool.ntp.org'] },
   },
+  network: {
+    lan: { '.name': 'lan', '.type': 'interface', device: 'br-lan', proto: 'static', ipaddr: ['192.168.1.1/24'] },
+    wan: { '.name': 'wan', '.type': 'interface', device: 'eth0', proto: 'dhcp' },
+  },
   dropbear: { main: { '.name': 'main', '.type': 'dropbear', Port: '22', PasswordAuth: 'on', RootPasswordAuth: 'on' } },
   lumen: {
     history: { '.name': 'history', '.type': 'history', interval: '300', clients: '1' },
