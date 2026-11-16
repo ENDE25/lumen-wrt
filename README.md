@@ -20,15 +20,9 @@ in one lightweight web app that installs with a single command.
 
 <br>
 
-<picture>
-  <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/dashboard-light.png">
-  <img alt="Dashboard" src="docs/screenshots/dashboard-light.png" width="100%">
-</picture>
+<img alt="Lumen dashboard" src="docs/screenshots/dashboard-light.png" width="100%">
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/dashboard-dark.png">
-  <img alt="Lumen dashboard" src="docs/screenshots/dashboard-light.png" width="100%">
-</picture>
+<img alt="Lumen dashboard, dark theme" src="docs/screenshots/dashboard-dark.png" width="100%">
 
 </div>
 
