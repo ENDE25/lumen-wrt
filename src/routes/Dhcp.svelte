@@ -164,7 +164,7 @@
         <div class="card-title"><h2>DHCP server</h2></div>
         {#each pools as p, i (p.name)}
           <fieldset>
-            <legend>Interfaz <b>{p.iface}</b></legend>
+            <legend>Interface <b>{p.iface}</b></legend>
             <Toggle bind:checked={p.enabled} label={p.enabled ? 'Enabled' : 'Disabled'} />
             <div class="f3" class:off={!p.enabled}>
               <label>First IP (offset)<input class="input" bind:value={p.start} inputmode="numeric" disabled={!p.enabled} aria-invalid={!!errs[`p${i}.start`]} />{#if errs[`p${i}.start`]}<small class="err">{errs[`p${i}.start`]}</small>{/if}</label>
