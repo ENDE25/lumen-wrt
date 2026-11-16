@@ -3,7 +3,9 @@
   import Icon from '../../components/Icon.svelte';
   import Toggle from '../../components/Toggle.svelte';
   import { changes } from '../../lib/changes.svelte';
-  import { loadIf, validate, buildOps, PROTOS, isEditable, type IfCfg, type IfForm } from '../../lib/netconf';
+  import { loadIf, validate, buildOps, PROTOS, type IfCfg, type IfForm } from '../../lib/netconf';
+  import { buildDeleteInterface } from '../../lib/netdevs';
+  import { str } from '../../lib/uci';
   import type { NetInterface } from '../../lib/types';
 
   let { iface, ondone }: { iface: NetInterface; ondone: () => void } = $props();
@@ -23,6 +25,16 @@
   const newIp = $derived(f?.proto === 'static' ? f.ipaddr.split('/')[0] : '');
   const moving = $derived(viaThis && cfg?.form.proto === 'static' && f?.proto === 'static' && !!newIp && newIp !== cfg.form.ipaddr.split('/')[0]);
   const losing = $derived(viaThis && !!f && !!cfg && (f.proto !== cfg.form.proto || f.vlan !== cfg.form.vlan));
+
+  let delAsk = $state(false), delErr = $state('');
+  async function remove() {
+    if (!cfg) return;
+    if (!delAsk) { delAsk = true; return; }
+    delErr = '';
+    const { ops, blocker } = await buildDeleteInterface(iface.interface, str(cfg.section.device) || str(cfg.section.ifname));
+    if (blocker) { delErr = blocker; delAsk = false; return; }
+    if (await changes.apply(ops, 'manual', `Interface “${iface.interface}” deleted`)) ondone();
+  }
 
   let busy = $state(false);
   async function save() {
@@ -47,6 +59,7 @@
   <p class="muted">Loading…</p>
 {:else}
   <div class="form">
+    {#if cfg.editable}
     <label><span>Protocol</span>
       <select class="input" bind:value={f.proto}>{#each PROTOS as [id, label]}<option value={id}>{label}</option>{/each}</select></label>
 
@@ -76,6 +89,17 @@
       <p class="alert"><Icon name="alert" size={16} />You are connected through this interface. This change can cut this connection. If you cannot confirm it, it is rolled back automatically in 30 seconds.</p>
     {/if}
     <div class="row"><button class="btn primary" disabled={!dirty || !!err || busy} onclick={save}>Apply</button><button class="btn" onclick={ondone}>Cancel</button></div>
+    {:else}
+      <p class="muted small">The “{cfg.section.proto}” protocol is not edited here. You can still delete the interface below.</p>
+    {/if}
+    <hr />
+    <div class="danger-zone">
+      {#if delErr}<p class="alert"><Icon name="alert" size={16} /><span>{delErr}</span></p>{/if}
+      {#if delAsk}
+        <p class="muted small">This removes the interface{viaThis ? ' you are connected through (the panel will disconnect; it rolls back if you cannot confirm)' : ''}, its firewall zone membership and DHCP server. Devices on it lose their network.</p>
+        <div class="row"><button class="btn danger" onclick={remove}>Confirm: delete interface</button><button class="btn" onclick={() => (delAsk = false)}>Cancel</button></div>
+      {:else}<button class="btn danger" onclick={remove}>Delete interface…</button>{/if}
+    </div>
   </div>
 {/if}
 
@@ -84,5 +108,6 @@
   label { display: grid; gap: 5px; } label > span { font-size: 13px; color: var(--text-2); }
   textarea.input { font-family: var(--mono, monospace); resize: vertical; }
   .bad { color: var(--bad, #dc2626); } .row { display: flex; gap: 10px; }
+  hr { border: 0; border-top: 1px solid var(--border); margin: 6px 0; } .danger-zone { display: grid; gap: 10px; }
   .form :global(.alert) { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; }
 </style>

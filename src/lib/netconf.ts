@@ -7,7 +7,7 @@ export const PROTOS: [Proto, string][] = [['dhcp', 'DHCP client'], ['static', 'S
 export const isEditable = (proto: string): proto is Proto => PROTOS.some(([p]) => p === proto);
 
 export interface IfForm { proto: Proto; ipaddr: string; gateway: string; dns: string; useIspDns: boolean; metric: string; username: string; password: string; vlan: string }
-export interface IfCfg { section: UciSection; form: IfForm; baseDevice: string; vlanSection: UciSection | null; canVlan: boolean; all: UciConfig }
+export interface IfCfg { editable: boolean; section: UciSection; form: IfForm; baseDevice: string; vlanSection: UciSection | null; canVlan: boolean; all: UciConfig }
 
 const prefixOf = (mask: string) => mask.split('.').reduce((n, o) => n + (+o).toString(2).replace(/0/g, '').length, 0);
 
@@ -21,7 +21,7 @@ export async function loadIf(name: string): Promise<IfCfg | null> {
   const dev = str(section.device) || str(section.ifname);
   const vlanSection = Object.values(all).find((s) => s['.type'] === 'device' && str(s.type) === '8021q' && str(s.name) === dev) ?? null;
   return {
-    section, all, vlanSection, baseDevice: vlanSection ? str(vlanSection.ifname) : dev, canVlan: !dev.startsWith('br-') && !!dev,
+    editable: isEditable(proto), section, all, vlanSection, baseDevice: vlanSection ? str(vlanSection.ifname) : dev, canVlan: !dev.startsWith('br-') && !!dev,
     form: {
       proto: isEditable(proto) ? proto : 'dhcp', ipaddr: ip, gateway: str(section.gateway), dns: asList(section.dns).join('\n'),
       useIspDns: str(section.peerdns) !== '0', metric: str(section.metric), username: str(section.username), password: str(section.password),

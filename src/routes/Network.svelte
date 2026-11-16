@@ -6,13 +6,16 @@
   import NetRouting from './network/NetRouting.svelte';
   import NetDiag from './network/NetDiag.svelte';
   import NetIfaceEdit from './network/NetIfaceEdit.svelte';
+  import NetIfaceNew from './network/NetIfaceNew.svelte';
+  import NetBridges from './network/NetBridges.svelte';
   import { isEditable } from '../lib/netconf';
   import { bps, bytes, cidr, duration } from '../lib/format';
   import type { NetDevice, NetInterface } from '../lib/types';
 
   onMount(() => live.start());
 
-  let tab = $state<'overview' | 'routing' | 'diag'>('overview');
+  let tab = $state<'overview' | 'bridges' | 'routing' | 'diag'>('overview');
+  let adding = $state(false);
   let editing = $state(false);
   let selIf = $state<NetInterface | null>(null);
   let selDev = $state<NetDevice | null>(null);
@@ -26,16 +29,18 @@
   <div class="page-head"><h1>Network</h1>
     <div class="seg" role="tablist">
       <button role="tab" aria-selected={tab === 'overview'} class:on={tab === 'overview'} onclick={() => (tab = 'overview')}>Overview</button>
+      <button role="tab" aria-selected={tab === 'bridges'} class:on={tab === 'bridges'} onclick={() => (tab = 'bridges')}>Bridges &amp; VLANs</button>
       <button role="tab" aria-selected={tab === 'routing'} class:on={tab === 'routing'} onclick={() => (tab = 'routing')}>Routing</button>
       <button role="tab" aria-selected={tab === 'diag'} class:on={tab === 'diag'} onclick={() => (tab = 'diag')}>Diagnostics</button>
     </div>
   </div>
 
   {#if tab === 'routing'}<NetRouting />
+  {:else if tab === 'bridges'}<NetBridges />
   {:else if tab === 'diag'}<NetDiag />
   {:else}
   <div class="card tw">
-    <div class="card-title" style="padding:20px 20px 0"><h2>Interfaces</h2></div>
+    <div class="card-title" style="padding:20px 20px 0"><h2>Interfaces</h2><button class="btn" onclick={() => (adding = true)}>Add interface</button></div>
     <table class="tbl">
       <thead><tr><th>Name</th><th>Status</th><th>Protocol</th><th>Device</th><th>IPv4</th><th>Uptime</th><th>↓ / ↑</th></tr></thead>
       <tbody>
@@ -77,6 +82,10 @@
   {/if}
 </div>
 
+<Drawer open={adding} title="New interface" onclose={() => (adding = false)}>
+  {#if adding}<NetIfaceNew ondone={() => (adding = false)} />{/if}
+</Drawer>
+
 <Drawer open={!!curIf} title={curIf ? `Interface ${curIf.interface}` : ''} onclose={() => { selIf = null; editing = false; }}>
   {#if curIf && editing}
     <NetIfaceEdit iface={curIf} ondone={() => (editing = false)} />
@@ -88,7 +97,7 @@
     {#each curIf['ipv6-address'] ?? [] as a}<div class="stat-row"><span>IPv6</span><b class="mono">{cidr(a)}</b></div>{/each}
     {#each curIf.route ?? [] as r}<div class="stat-row"><span>Route</span><b class="num">{r.target}/{r.mask} → {r.nexthop}</b></div>{/each}
     {#if curIf['dns-server']?.length}<div class="stat-row"><span>DNS</span><b class="num">{curIf['dns-server'].join(', ')}</b></div>{/if}
-    {#if isEditable(curIf.proto)}<div style="margin-top:16px"><button class="btn" onclick={() => (editing = true)}>Edit settings…</button></div>{/if}
+    <div style="margin-top:16px"><button class="btn" onclick={() => (editing = true)}>{isEditable(curIf.proto) ? 'Edit settings…' : 'Manage…'}</button></div>
   {/if}
 </Drawer>
 

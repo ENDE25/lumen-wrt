@@ -23,7 +23,7 @@ class Changes {
     try {
       for (const o of ops) {
         if (o.op === 'set') await uciSet(o.config, o.section, o.values);
-        else if (o.op === 'add') await uciAdd(o.config, o.type, o.values);
+        else if (o.op === 'add') await uciAdd(o.config, o.type, o.values, o.name);
         else if (o.op === 'del') await uciDelete(o.config, o.section);
         else if (o.op === 'order') await uciOrder(o.config, o.sections);
         else await uciDelete(o.config, o.section, o.option);

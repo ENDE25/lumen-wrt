@@ -28,7 +28,7 @@ export const uciRollback = () => call('uci', 'rollback');
 export type UciOp =
   | { op: 'set'; config: string; section: string; values: Record<string, UciValue> }
   | { op: 'del-option'; config: string; section: string; option: string }
-  | { op: 'add'; config: string; type: string; values: Record<string, UciValue> }
+  | { op: 'add'; config: string; type: string; values: Record<string, UciValue>; name?: string }
   | { op: 'del'; config: string; section: string }
   | { op: 'order'; config: string; sections: string[] };
 

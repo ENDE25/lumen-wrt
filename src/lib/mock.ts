@@ -89,6 +89,9 @@ const UCI: Record<string, Record<string, any>> = {
   network: {
     lan: { '.name': 'lan', '.type': 'interface', device: 'br-lan', proto: 'static', ipaddr: ['192.168.1.1/24'] },
     wan: { '.name': 'wan', '.type': 'interface', device: 'eth0', proto: 'dhcp' },
+    cfg0br: { '.name': 'cfg0br', '.type': 'device', '.anonymous': true, name: 'br-lan', type: 'bridge', ports: ['lan1', 'lan2', 'lan3'], vlan_filtering: '1' },
+    cfg0v1: { '.name': 'cfg0v1', '.type': 'bridge-vlan', '.anonymous': true, device: 'br-lan', vlan: '1', ports: ['lan1:u*', 'lan2:u*', 'lan3:u*'] },
+    cfg0v2: { '.name': 'cfg0v2', '.type': 'bridge-vlan', '.anonymous': true, device: 'br-lan', vlan: '30', ports: ['lan1:t', 'lan3:u*'], local: '0' },
   },
   // (LED actions live in the system config)
   dropbear: { main: { '.name': 'main', '.type': 'dropbear', Port: '22', PasswordAuth: 'on', RootPasswordAuth: 'on' } },
@@ -336,8 +339,8 @@ export async function mockCall(obj: string, method: string, args: any = {}): Pro
       return {};
     }
     case 'uci.add': {
-      const name = 'cfg' + Math.random().toString(16).slice(2, 8);
-      (UCI[args.config] ??= {})[name] = { '.name': name, '.type': args.type, '.anonymous': true, ...args.values };
+      const name = args.name ?? 'cfg' + Math.random().toString(16).slice(2, 8);
+      (UCI[args.config] ??= {})[name] = { '.name': name, '.type': args.type, ...(args.name ? {} : { '.anonymous': true }), ...args.values };
       return { section: name };
     }
     case 'uci.delete':

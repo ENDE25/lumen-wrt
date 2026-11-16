@@ -80,8 +80,10 @@ in light and dark themes, on desktop and phone.
 - **Vendor recognition** from the MAC address (about 54 000 vendors), **brand logos** for the popular ones, and a clear "Private address" label for phones that randomise their MAC.
 - **Give any device a name and a type** by hand. They are stored on the router, tied to the MAC, and show up everywhere.
 
-### Interfaces
-- **Edit an interface** from its details panel: DHCP, static address or PPPoE, DNS servers, metric and an optional **VLAN ID**. Changes use safe apply, and if you change the address you are connected through, Lumen moves you to the new one and asks for confirmation there.
+### Interfaces, bridges and VLANs
+- **Create, edit and delete interfaces**: DHCP, static address or PPPoE, DNS servers, metric and an optional VLAN ID. A new interface can join a firewall zone and get a DHCP server in the same step, and deleting one cleans up its zone membership and DHCP server (and refuses while a Wi-Fi network still uses it).
+- **Bridges** (ports, VLAN filtering) and a **VLAN table** per bridge, where each port is tagged, untagged or the default VLAN, with checks for the most common mistakes.
+- Everything uses safe apply, and if you change the address you are connected through, Lumen moves you to the new one and asks for confirmation there.
 
 ### Routing & diagnostics
 - The **active routing table** (IPv4 and IPv6), **static routes** you can add or remove with safe apply, the **neighbour (ARP) table** with device names, and **ping, traceroute and DNS lookup** run from the router.
