@@ -76,7 +76,14 @@ const OFFLINE = new Set(['Laptop-Dell', 'Pixel-8', 'Galaxy-S23']);
 const WIRED: Record<string, string> = { raspberrypi: 'lan1', 'NAS-Synology': 'lan1', 'Printer-HP': 'lan2', 'DESKTOP-GAMING': 'lan2' };
 
 // Tiny in-memory UCI so the DHCP/DNS page is fully usable in demo mode.
+const FILES: Record<string, string> = { '/etc/dropbear/authorized_keys': 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl marta@laptop\n', '/etc/crontabs/root': '# Reboot every Sunday at 4:30\n30 4 * * 0 /sbin/reboot\n' };
+const INIT: Record<string, { start: number; enabled: boolean; running: boolean }> = Object.fromEntries(['boot:10', 'sysinit:11', 'network:20', 'firewall:19', 'dnsmasq:19', 'odhcpd:50', 'dropbear:19', 'uhttpd:50', 'rpcd:12', 'cron:50', 'sysntpd:99', 'lumen-history:95', 'done:95'].map((x) => { const [n, o] = x.split(':'); return [n, { start: +o, enabled: true, running: n !== 'sysntpd' }]; }));
 const UCI: Record<string, Record<string, any>> = {
+  system: {
+    cfg01e48a: { '.name': 'cfg01e48a', '.type': 'system', '.anonymous': true, hostname: 'lumen-demo', zonename: 'Europe/Madrid', timezone: 'CET-1CEST,M3.5.0,M10.5.0/3' },
+    ntp: { '.name': 'ntp', '.type': 'timeserver', enabled: '1', enable_server: '0', server: ['0.openwrt.pool.ntp.org', '1.openwrt.pool.ntp.org'] },
+  },
+  dropbear: { main: { '.name': 'main', '.type': 'dropbear', Port: '22', PasswordAuth: 'on', RootPasswordAuth: 'on' } },
   lumen: {
     history: { '.name': 'history', '.type': 'history', interval: '300', clients: '1' },
     cfg0n1: { '.name': 'cfg0n1', '.type': 'client', '.anonymous': true, mac: 'F0:18:98:0B:3C:02', name: "Dad's MacBook" },
@@ -342,6 +349,12 @@ export async function mockCall(obj: string, method: string, args: any = {}): Pro
       return {};
   }
   if (obj.startsWith('hostapd.') && method === 'del_client') return {};
+  if (obj === 'file' && method === 'read') { if (args.path in FILES) return { data: FILES[args.path] }; throw new Error('not found'); }
+  if (obj === 'file' && method === 'write') { FILES[args.path] = args.data; return {}; }
+  if (k === 'luci.setPassword') return {};
+  if (k === 'luci.getTimezones') return { 'Europe/Madrid': { tzstring: 'CET-1CEST,M3.5.0,M10.5.0/3' }, 'Europe/London': { tzstring: 'GMT0BST,M3.5.0/1,M10.5.0' }, UTC: { tzstring: 'UTC0' }, 'America/New_York': { tzstring: 'EST5EDT,M3.2.0,M11.1.0' } };
+  if (k === 'rc.list') return INIT;
+  if (k === 'rc.init') { const i = INIT[args.name]; if (i) { if (args.action === 'enable') i.enabled = true; if (args.action === 'disable') i.enabled = false; if (args.action === 'stop') i.running = false; if (args.action === 'start' || args.action === 'restart') i.running = true; } return {}; }
   if (obj === 'file' && method === 'exec') {
     if (args.command === '/bin/tar') return { code: 0, stdout: 'etc/config/network\netc/config/wireless\netc/config/firewall\netc/config/dhcp\netc/config/system\netc/config/lumen\netc/dropbear/authorized_keys\netc/passwd\netc/shadow\n' };
     return { code: 0, stdout: '' };

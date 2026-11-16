@@ -17,6 +17,7 @@
     { id: 'software', icon: 'package', label: 'Software' },
     { id: 'logs', icon: 'logs', label: 'Logs' },
     { id: 'backup', icon: 'down', label: 'Backup & Firmware' },
+    { id: 'admin', icon: 'router', label: 'Administration' },
     { id: 'system', icon: 'settings', label: 'System' },
   ];
 </script>

@@ -84,7 +84,8 @@ in light and dark themes, on desktop and phone.
 - Radios (channel, width, country, power), SSIDs with WPA3, WPA2/WPA3, WPA2, OWE or open, hidden networks, client isolation, a passphrase generator, and connected clients with a **Disconnect** button.
 
 ### Firewall
-- **Port forwards** with a client picker, **traffic rules** you can reorder (first match wins), **zones** with default policies and forwardings.
+- A **Blocked** tab with an optional logging toggle: blocked connections per hour, top sources and most targeted ports, read from the system log only while the page is open.
+- **Traffic rules** you can reorder (first match wins), **zones** with default policies and forwardings, and **port forwards** with a client picker.
 
 ### DHCP & DNS
 - DHCP pools per interface, upstream DNS, rebinding protection, and **static IP reservations** (add them straight from a known client).
@@ -92,6 +93,13 @@ in light and dark themes, on desktop and phone.
 ### Software
 - Browse **installed packages and available updates**, search the repositories (about 11 000 packages), and install, remove or upgrade, always with a **preview of exactly what will change** and a live log.
 - Checks whether a **newer OpenWrt release** exists for your router.
+
+### Backup & firmware
+- **Download and restore** configuration backups, **flash a sysupgrade image** (checked by the router first, with an option to keep your settings), and **reset to factory defaults**.
+
+### Administration
+- **Root password**, **SSH access** (port, password login) and **SSH keys**, with a guard against locking yourself out.
+- **Hostname, time zone and NTP**, **startup scripts** (start at boot, start, restart, stop) and **scheduled tasks** (cron).
 
 ### System
 - **Services** with running / failed state, **logs**, hardware details, temperatures, reboot, and **Lumen's own update and uninstall**.
@@ -351,7 +359,7 @@ public/         favicon and the compressed vendor table
 
 - [ ] `opkg` backend for the Software page (OpenWrt 24.10 and earlier), with a compatibility test
 - [ ] Independence from LuCI packages (ship Lumen's own access rules and data methods)
-- [ ] Flash firmware upgrades from the panel
+- [ ] Download and flash the latest OpenWrt release directly from the panel
 - [ ] Native `apk` package and feed
 - [ ] More languages (English only for now)
 
