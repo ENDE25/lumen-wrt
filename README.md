@@ -40,7 +40,7 @@ wget -qO- https://raw.githubusercontent.com/ENDE25/lumen-wrt/main/release/instal
 
 <br>
 
-🤝 **Works alongside LuCI.** Lumen never modifies it, so you can try it at no risk and keep LuCI as a fallback.
+🤝 **Works alongside LuCI.** Lumen never modifies it, so you can try it at no risk, keep LuCI as a fallback, and uninstall Lumen with one click.
 
 </div>
 
