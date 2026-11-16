@@ -51,6 +51,7 @@
     server: ['Servers', '#ef4444'], router: ['Network', '#64748b'], console: ['Consoles', '#ec4899'], camera: ['Cameras', '#0d9488'], speaker: ['Speakers', '#b45309'], unknown: ['Other', '#a8b3c4'],
   };
 
+  const online = $derived(clients.filter((c) => c.active).length);
   const segs = $derived.by(() => {
     const m = new Map<string, number>();
     clients.forEach((c) => m.set(c.kind, (m.get(c.kind) ?? 0) + 1));
@@ -130,6 +131,7 @@
               {/each}
             </ul>
           </div>
+          <div class="online"><span class="pill"><i class="dot ok"></i><b class="num">{online}</b> online now</span><span class="faint small">{clients.length - online} offline</span></div>
         </div>
 
         <div class="card">
@@ -228,6 +230,7 @@
   .live { display: flex; gap: 18px; margin-top: 4px; font-size: 20px; font-weight: 600; }
   .live span { display: inline-flex; align-items: center; gap: 4px; }
   .sel { width: auto; min-width: 160px; }
+  .online { display: flex; align-items: center; gap: 12px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
   .cl { display: flex; gap: 18px; align-items: center; flex-wrap: wrap; }
   .cl ul { list-style: none; margin: 0; padding: 0; flex: 1; min-width: 120px; display: grid; gap: 7px; }
   .cl li { display: flex; align-items: center; gap: 8px; font-size: 13px; }
