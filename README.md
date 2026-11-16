@@ -115,7 +115,7 @@ in light and dark themes, on desktop and phone.
   </tr>
 </table>
 
-<sub>Screenshots are taken on a real OpenWrt One. Device names, addresses and MACs are blurred.</sub>
+<sub>Screenshots are taken on a real OpenWrt One. MAC addresses are blurred.</sub>
 
 <br>
 
