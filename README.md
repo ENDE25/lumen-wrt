@@ -11,7 +11,7 @@ in one lightweight web app that installs with a single command.
 
 <br>
 
-![Version](https://img.shields.io/badge/version-0.8.0-006fff?style=flat-square)
+![Version](https://img.shields.io/badge/version-0.18.3-006fff?style=flat-square)
 ![OpenWrt](https://img.shields.io/badge/OpenWrt-25.12-1f6feb?style=flat-square)
 ![Footprint](https://img.shields.io/badge/web%20app-~115%20KB%20gzip-0ea66b?style=flat-square)
 ![Dependencies](https://img.shields.io/badge/runtime%20dependencies-0-0ea66b?style=flat-square)
@@ -64,8 +64,8 @@ in light and dark themes, on desktop and phone.
 ## Features
 
 ### At a glance
-- **Dashboard** with live network activity, CPU, memory and storage, temperatures, Internet status, ports and their speeds, clients by type, running services and system activity (connections, processes).
-- **Light and dark** themes, responsive layout, and a single batched request every two seconds feeding every page.
+- **Dashboard** with live network activity, CPU, memory and storage, temperatures, Internet status, ports and their speeds, clients by type with how many are online right now, running services and system activity (connections, processes).
+- **Light and dark** themes, responsive layout, a short reveal animation after signing in (disabled when the system asks for reduced motion), and a single batched request every two seconds feeding every page.
 
 ### Network map
 - A router-centred diagram: **Internet → router → ports and SSIDs → devices**, wired links solid and Wi-Fi links dashed, with signal strength per device.
@@ -108,7 +108,7 @@ in light and dark themes, on desktop and phone.
 - **Download and restore** configuration backups and **reset to factory defaults**.
 
 ### Settings
-- **Hostname, time zone and NTP**, **root password**, **SSH access and keys** (with a guard against locking yourself out), **LED actions**, hardware details, temperatures and reboot.
+- **Hostname, time zone and NTP**, **root password**, **SSH** (port, password login and authorized keys, with a guard against locking yourself out), **LED actions**, hardware details, temperatures and reboot.
 
 <br>
 
