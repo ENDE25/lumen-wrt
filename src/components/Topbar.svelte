@@ -11,7 +11,7 @@
   <span class="app">Lumen</span>
   <div class="right">
     {#if updates.available}<a class="pill upd" href="#/updates" title="A new version of Lumen is available">Update available · v{updates.latest?.version}</a>{/if}
-    {#if MOCK}<span class="pill">Demo mode</span>{/if}
+    {#if MOCK}<a class="pill demo" href="../" title="Back to the Lumen website">Demo · example router · back to site</a>{/if}
     {#if live.error}<span class="pill" style="color:var(--bad)">Router unreachable</span>{/if}
   </div>
 </header>
@@ -24,6 +24,8 @@
   .site { display: flex; align-items: center; gap: 9px; }
   .app { color: var(--accent); font-weight: 600; padding: 5px 12px; background: var(--accent-soft); border-radius: 8px; font-size: 13px; }
   .upd { background: var(--accent-soft); color: var(--accent); font-weight: 600; text-decoration: none; }
+  .demo { color: var(--text-2); text-decoration: none; }
+  .demo:hover { color: var(--accent); }
   .upd:hover { text-decoration: none; filter: brightness(.96); }
   .right { margin-left: auto; display: flex; gap: 10px; }
   @media (max-width: 760px) { header { padding: 0 14px; } }

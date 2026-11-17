@@ -8,6 +8,7 @@
   "scripts": {
     "dev": "vite",
     "dev:mock": "VITE_MOCK=1 vite",
+    "build:demo": "VITE_MOCK=1 vite build --outDir ${DEMO_OUT:-../lumen/demo} --emptyOutDir",
     "build": "vite build",
     "check": "svelte-check --tsconfig ./tsconfig.json",
     "preview": "vite preview",
