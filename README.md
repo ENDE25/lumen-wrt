@@ -128,16 +128,20 @@ in light and dark themes, on desktop and phone.
     <td width="50%"><a href="docs/screenshots/wifi.png"><img alt="Wi-Fi" src="docs/screenshots/wifi.png"></a><br><b>Wi-Fi</b><br><sub>Radios, SSIDs and connected clients.</sub></td>
   </tr>
   <tr>
-    <td width="50%"><a href="docs/screenshots/firewall.png"><img alt="Firewall" src="docs/screenshots/firewall.png"></a><br><b>Firewall</b><br><sub>Reorderable traffic rules, port forwards and zones.</sub></td>
+    <td width="50%"><a href="docs/screenshots/firewall.png"><img alt="Firewall" src="docs/screenshots/firewall.png"></a><br><b>Firewall</b><br><sub>Blocked traffic with logging, reorderable rules, port forwards and zones.</sub></td>
     <td width="50%"><a href="docs/screenshots/dhcp-dns.png"><img alt="DHCP & DNS" src="docs/screenshots/dhcp-dns.png"></a><br><b>DHCP &amp; DNS</b><br><sub>DHCP pools, upstream DNS and static reservations.</sub></td>
   </tr>
   <tr>
-    <td width="50%"><a href="docs/screenshots/services.png"><img alt="Services" src="docs/screenshots/services.png"></a><br><b>Services</b><br><sub>Health of every service at a glance.</sub></td>
+    <td width="50%"><a href="docs/screenshots/services.png"><img alt="Services" src="docs/screenshots/services.png"></a><br><b>Services</b><br><sub>Running and failed state of every startup script, with start at boot.</sub></td>
     <td width="50%"><a href="docs/screenshots/software.png"><img alt="Updates" src="docs/screenshots/software.png"></a><br><b>Updates</b><br><sub>OpenWrt release, packages and Lumen in one place.</sub></td>
   </tr>
   <tr>
     <td width="50%"><a href="docs/screenshots/logs.png"><img alt="Logs" src="docs/screenshots/logs.png"></a><br><b>Logs</b><br><sub>The system log with a live filter.</sub></td>
-    <td width="50%"><a href="docs/screenshots/system.png"><img alt="System" src="docs/screenshots/system.png"></a><br><b>System</b><br><sub>Hardware, temperatures and power.</sub></td>
+    <td width="50%"><a href="docs/screenshots/system.png"><img alt="Settings" src="docs/screenshots/system.png"></a><br><b>Settings</b><br><sub>Identity, time, password, SSH, LEDs and hardware details.</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><a href="docs/screenshots/backup.png"><img alt="Backup" src="docs/screenshots/backup.png"></a><br><b>Backup</b><br><sub>Download and restore the configuration, or reset to factory defaults.</sub></td>
+    <td width="50%"></td>
   </tr>
 </table>
 
