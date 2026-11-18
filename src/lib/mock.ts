@@ -181,7 +181,7 @@ function mockRunJob(action: string, pkgs: string[]) {
   }, 700 * (steps.length + 1) + 300);
 }
 
-export async function mockCall(obj: string, method: string, args: any = {}): Promise<any> {
+async function mockBase(obj: string, method: string, args: any = {}): Promise<any> {
   await new Promise((r) => setTimeout(r, 40 + Math.random() * 60));
   tick();
   const k = `${obj}.${method}`;
@@ -390,4 +390,66 @@ export async function mockCall(obj: string, method: string, args: any = {}): Pro
   if (k === 'system.validate_firmware_image') return { valid: true, forceable: false, allow_backup: true, tests: { fwtool_signature: true, fwtool_device_match: true } };
   console.warn('[mock] unhandled', k, args);
   throw new Error('mock: unhandled ' + k);
+}
+
+// ---- Scenario "wisp" (open the app with ?scenario=wisp): the uplink is a Wi-Fi client on the 5 GHz radio, the
+// LAN is served by the 2.4 GHz radio and the upstream network's own hosts show up in the ARP table.
+const UP_MAC = 'aa:bb:cc:00:00:01';
+const UP_HOSTS: [string, string, string, string][] = [
+  [UP_MAC.toUpperCase(), 'Upstream-Router', '192.168.8.1', 'router'],
+  ['B8:27:EB:10:20:30', 'Upstream-TV', '192.168.8.20', 'tv'],
+  ['3C:22:FB:AA:01:02', 'Upstream-Laptop', '192.168.8.31', 'laptop'],
+];
+const isWisp = () => typeof location !== 'undefined' && new URLSearchParams(location.search).get('scenario') === 'wisp';
+let wispReady = false;
+function initWisp() {
+  if (wispReady) return; wispReady = true;
+  HOSTS.push(...UP_HOSTS);
+  for (const v of Object.values(WIFI)) if (v[0] === 'phy0-ap0') v[0] = 'phy1-ap0';
+  counters['phy0-sta0'] = { rx: 3e9, tx: 4e8, base: [6e5, 9e4] };
+  Object.assign(UCI.wireless.default_radio0, { mode: 'sta', ssid: 'Uplink-WiFi', network: 'wwan', encryption: 'psk2', key: 'upstream-secret' });
+  UCI.network.wwan = { '.name': 'wwan', '.type': 'interface', proto: 'dhcp' };
+  delete UCI.network.wan;
+  UCI.firewall.cfg0wan.network = ['wwan'];
+  UCI.dhcp.wwan = { ...UCI.dhcp.wan, '.name': 'wwan', interface: 'wwan' };
+  delete UCI.dhcp.wan;
+}
+const isUp = (ip: string) => ip.startsWith('192.168.8.');
+function wispPatch(k: string, args: any, r: any): any {
+  switch (k) {
+    case 'network.interface.dump':
+      return { interface: r.interface.filter((i: any) => i.interface !== 'wan6').map((i: any) => i.interface !== 'wan' ? i : {
+        ...i, interface: 'wwan', l3_device: 'phy0-sta0', device: 'phy0-sta0', 'ipv4-address': [{ address: '192.168.8.25', mask: 24 }],
+        route: [{ target: '0.0.0.0', mask: 0, nexthop: '192.168.8.1' }], 'dns-server': ['192.168.8.1'] }) };
+    case 'network.device.status': {
+      const { 'phy0-ap0': _gone, ...rest } = r;
+      rest['phy0-sta0'] = dev('phy0-sta0', { speed: undefined });
+      rest['br-lan']['bridge-members'] = ['lan1', 'lan2', 'phy1-ap0'];
+      return rest;
+    }
+    case 'luci-rpc.getWirelessDevices':
+      return { ...r, radio0: { up: true, interfaces: [{ section: 'default_radio0', ifname: 'phy0-sta0', config: { ssid: 'Uplink-WiFi', mode: 'sta' } }] } };
+    case 'iwinfo.info':
+      return args.device === 'phy0-sta0' ? { ssid: 'Uplink-WiFi', mode: 'Client', channel: 36, frequency: 5180, signal: -55 } : r;
+    case 'iwinfo.assoclist':
+      return args.device === 'phy0-sta0'
+        ? { results: [{ mac: UP_MAC, signal: -55, noise: -95, rx: { rate: 866000 }, tx: { rate: 780000 } }] } : r;
+    case 'luci-rpc.getDHCPLeases':
+      return { ...r, dhcp_leases: r.dhcp_leases.filter((l: any) => !isUp(l.ipaddr)) };
+    case 'lumen.topology':
+      return {
+        bridges: { 'br-lan': ['lan1', 'lan2', 'phy1-ap0'] },
+        fdb: { 'br-lan': (r.fdb['br-lan'] as any[]).filter((e) => !UP_HOSTS.some(([m]) => m.toLowerCase() === e.mac)) },
+        neigh: [...(r.neigh as any[]).filter((e) => !UP_HOSTS.some(([m]) => m.toLowerCase() === e.mac)),
+          ...UP_HOSTS.map(([mac, , ip]) => ({ ip, mac: mac.toLowerCase(), dev: 'phy0-sta0' }))],
+      };
+    default: return r;
+  }
+}
+
+export async function mockCall(obj: string, method: string, args: any = {}): Promise<any> {
+  const wisp = isWisp();
+  if (wisp) initWisp();
+  const r = await mockBase(obj, method, args);
+  return wisp ? wispPatch(`${obj}.${method}`, args, r) : r;
 }

@@ -85,6 +85,8 @@ export interface WifiIface {
   radio?: string;     // wifi-device name
   ssid: string;
   mode: string;
+  /** ap = serves a network, sta = Wi-Fi client of another network (the uplink), other = mesh, ad-hoc, monitor */
+  role: 'ap' | 'sta' | 'other';
   channel?: number;
   band: string;
   clients: { mac: string; signal?: number; rx?: number; tx?: number }[];

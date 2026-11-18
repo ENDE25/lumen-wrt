@@ -24,7 +24,7 @@ class Updates {
     this.checking = true; this.error = '';
     try { this.info = await call<VersionInfo>('lumen', 'version'); } catch { this.info = { managed: false }; }
     try {
-      if (MOCK) this.latest = { version: '0.9.0', released: new Date().toISOString(), notes: 'Demo: pretend a newer version is out.' };
+      if (MOCK) this.latest = { version: this.current, released: new Date().toISOString(), notes: '' };
       else {
         const r = await fetch(`${this.base}/latest.json`, { cache: 'no-store' });
         if (!r.ok) throw new Error(`HTTP ${r.status}`);

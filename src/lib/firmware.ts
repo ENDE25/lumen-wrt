@@ -1,8 +1,11 @@
+import { MOCK } from './ubus';
+
 // Is there a newer OpenWrt release? The official release index is public and CORS-enabled, so the browser
 // asks it directly: the router isn't involved (and may not even resolve DNS).
 export interface Versions { stable: string; oldstable: string; upcoming: string; list: string[] }
 
 export async function fetchVersions(): Promise<Versions | null> {
+  if (MOCK) return { stable: '25.12.6', oldstable: '24.10.6', upcoming: '', list: ['25.12.6', '24.10.6'] };
   try {
     const r = await fetch('https://downloads.openwrt.org/.versions.json', { cache: 'no-store' });
     if (!r.ok) return null;

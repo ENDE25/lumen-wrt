@@ -73,7 +73,7 @@ export async function getNetworkMap(): Promise<NetworkMap> {
   const wifi: WifiIface[] = ifnames.map((w, i) => {
     const info = wifiRes[i * 2] ?? {}, assoc = wifiRes[i * 2 + 1]?.results ?? [];
     return {
-      ifname: w.ifname, section: w.section, radio: w.radio, ssid: info.ssid || w.ssid, mode: info.mode || w.mode, channel: info.channel,
+      ifname: w.ifname, section: w.section, radio: w.radio, ssid: info.ssid || w.ssid, mode: info.mode || w.mode, role: wifiRole(info.mode || w.mode), channel: info.channel,
       band: bandOf(info.frequency),
       clients: assoc.map((a: any) => ({ mac: String(a.mac).toLowerCase(), signal: a.signal, rx: a.rx?.rate, tx: a.tx?.rate })),
     };
@@ -83,7 +83,9 @@ export async function getNetworkMap(): Promise<NetworkMap> {
   for (const l of (leases?.dhcp_leases ?? []) as Lease[]) byMac.set(l.macaddr.toLowerCase(), l);
   const bridges: Record<string, string[]> = topo?.bridges ?? {};
   const wifiOf = new Map<string, { w: WifiIface; c: WifiIface['clients'][number] }>();
-  wifi.forEach((w) => w.clients.forEach((c) => wifiOf.set(c.mac, { w, c })));
+  // A client-mode interface (the uplink) lists the access point it is connected to, which is not one of our clients.
+  wifi.filter((w) => w.role !== 'sta').forEach((w) => w.clients.forEach((c) => wifiOf.set(c.mac, { w, c })));
+  const up = upstream(wifi, (ifs?.interface ?? []) as NetInterface[], bridges);
   const fdbPort = new Map<string, string>();
   for (const entries of Object.values<any[]>(topo?.fdb ?? {}))
     for (const e of entries) if (!e.local && e.port) fdbPort.set(String(e.mac).toLowerCase(), e.port);
@@ -94,6 +96,8 @@ export async function getNetworkMap(): Promise<NetworkMap> {
   for (const [mac, h] of Object.entries<HostHint>(hints ?? {})) {
     const m = mac.toLowerCase();
     if (ownMacs.has(m) || h.ipaddrs?.some((ip) => ownIps.has(ip))) continue;
+    // Hosts that live on the other side of the uplink (the upstream router, its other devices) are not our clients.
+    if (!fdbPort.has(m) && !wifiOf.has(m) && up.isUpstream(m, h.ipaddrs ?? [], neighDev.get(m))) continue;
     const lease = byMac.get(m);
     const name = (h.name || (lease && lease.hostname !== '*' ? lease.hostname : '')) || '';
     // Online = associated to Wi-Fi, or in the bridge forwarding table (ages out after ~5 min); on routers
@@ -126,6 +130,43 @@ export async function getNetworkMap(): Promise<NetworkMap> {
 }
 
 export const getClients = async (): Promise<Client[]> => (await getNetworkMap()).clients;
+
+/** Wi-Fi mode names differ between UCI (ap, sta, mesh) and iwinfo (Master, Client, Mesh Point). */
+function wifiRole(mode: string): WifiIface['role'] {
+  const m = mode.toLowerCase();
+  if (m === 'ap' || m === 'master') return 'ap';
+  if (m === 'sta' || m === 'client') return 'sta';
+  return 'other';
+}
+
+const ip4 = (ip: string) => ip.split('.').reduce((a, n) => a * 256 + (+n || 0), 0);
+const maskOf = (bits: number) => (bits <= 0 ? 0 : (0xffffffff << (32 - bits)) >>> 0);
+const sameNet = (a: string, b: string, bits: number) => ((ip4(a) & maskOf(bits)) >>> 0) === ((ip4(b) & maskOf(bits)) >>> 0);
+
+/** What lies beyond the uplink: the upstream access point and every host seen through the uplink device. */
+function upstream(wifi: WifiIface[], ifs: NetInterface[], bridges: Record<string, string[]>) {
+  const staMacs = new Set<string>();
+  const devs = new Set<string>();
+  for (const w of wifi) if (w.role === 'sta') { devs.add(w.ifname); w.clients.forEach((c) => staMacs.add(c.mac)); }
+  const wan = ifs.find((i) => i.up && i.route?.some((r) => r.target === '0.0.0.0' && r.mask === 0));
+  const wanDev = wan?.l3_device ?? wan?.device;
+  // A router whose uplink is a bridge (access-point mode) has its own clients there: skip the device and subnet rules.
+  const wanIsBridge = !!wanDev && wanDev in bridges;
+  if (wanDev && !wanIsBridge) devs.add(wanDev);
+  const net = wan?.['ipv4-address']?.[0];
+  const lanNets = ifs.filter((i) => i !== wan).flatMap((i) => i['ipv4-address'] ?? []);
+  const subnet = net && !wanIsBridge && !lanNets.some((l) => sameNet(net.address, l.address, Math.min(net.mask, l.mask))) ? net : undefined;
+  const gw = wan?.route?.find((r) => r.target === '0.0.0.0' && r.mask === 0)?.nexthop;
+  return {
+    isUpstream(mac: string, ips: string[], neighDevice?: string): boolean {
+      if (staMacs.has(mac)) return true;
+      if (neighDevice && devs.has(neighDevice)) return true;
+      if (wanIsBridge) return false;
+      if (gw && ips.includes(gw)) return true;
+      return !!subnet && ips.some((ip) => sameNet(ip, subnet.address, subnet.mask));
+    },
+  };
+}
 
 function ipNum(ip: string): number {
   const p = ip.split('.').map(Number);
