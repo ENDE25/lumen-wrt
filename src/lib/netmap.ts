@@ -6,7 +6,7 @@ export type NodeKind = 'internet' | 'router' | 'port' | 'ssid' | 'client';
 export interface GNode {
   id: string; kind: NodeKind; x: number; y: number; w: number; h: number;
   title: string; sub: string; sub2?: string; icon: string; brand?: string; up: boolean;
-  client?: Client; port?: NetDevice; wifi?: WifiIface; iface?: NetInterface; count?: number;
+  client?: Client; port?: NetDevice; wifi?: WifiIface; iface?: NetInterface; count?: number; uplink?: boolean;
 }
 export interface GLink { id: string; from: string; to: string; wifi: boolean; up: boolean; curve: boolean; label?: string }
 export interface Graph { nodes: GNode[]; links: GLink[]; width: number; height: number }
@@ -57,10 +57,16 @@ export function buildGraph(p: {
     });
     byDev.delete(d.name);
   }
+  // A Wi-Fi client interface is the way up, not a network we serve. When it carries the default route it becomes the
+  // Internet link below; any other one is listed as an uplink without clients.
+  const chan = (w: WifiIface) => [w.band, w.channel ? `ch ${w.channel}` : ''].filter(Boolean).join(' · ');
+  const upWifi = wifi.find((w) => w.role === 'sta' && w.ifname === wanDev);
   for (const w of wifi) {
+    if (w === upWifi) { byDev.delete(w.ifname); continue; }
+    const sta = w.role === 'sta';
     attaches.push({
-      id: `ssid:${w.ifname}`, kind: 'ssid', clients: byDev.get(w.ifname) ?? [],
-      node: { title: w.ssid || w.ifname, sub: [w.band, w.channel ? `ch ${w.channel}` : ''].filter(Boolean).join(' · '), icon: 'wifi', up: true, wifi: w },
+      id: `ssid:${w.ifname}`, kind: 'ssid', clients: sta ? [] : byDev.get(w.ifname) ?? [],
+      node: { title: w.ssid || w.ifname, sub: sta ? ['Uplink', chan(w)].filter(Boolean).join(' · ') : chan(w), icon: 'wifi', up: true, wifi: w, uplink: sta },
     });
     byDev.delete(w.ifname);
   }
@@ -96,9 +102,9 @@ export function buildGraph(p: {
   });
   nodes.push({
     id: 'internet', kind: 'internet', x: COL.internet + 10, y: mid - 26, w: W.internet, h: 100, up: !!wan, icon: 'globe',
-    title: 'Internet', sub: wan?.['ipv4-address']?.[0]?.address ?? (wan ? wan.proto : 'Offline'), iface: wan,
+    title: 'Internet', sub: wan?.['ipv4-address']?.[0]?.address ?? (wan ? wan.proto : 'Offline'), iface: wan, wifi: upWifi,
   });
-  links.push({ id: 'internet>router', from: 'internet', to: 'router', wifi: false, up: !!wan, curve: false, label: wan ? `${wan.interface} · ${wanDev}` : undefined });
+  links.push({ id: 'internet>router', from: 'internet', to: 'router', wifi: !!upWifi, up: !!wan, curve: false, label: wan ? (upWifi ? `${upWifi.ssid} · ${chan(upWifi)}` : `${wan.interface} · ${wanDev}`) : undefined });
   for (const a of attaches) links.push({ id: `router>${a.id}`, from: 'router', to: a.id, wifi: a.kind === 'ssid', up: a.node.up ?? true, curve: false });
 
   return { nodes, links, width: COL.client + W.client + 24, height: height + 8 };

@@ -83,7 +83,7 @@
               <span class="ico"><Glyph brand={n.brand} icon={n.icon} size={n.kind === 'internet' ? 46 : n.kind === 'router' ? 26 : 18} /></span>
               <span class="txt"><b>{n.title}</b>{#if n.sub}<small>{n.sub}</small>{/if}{#if n.sub2}<small class="mac">{n.sub2}</small>{/if}</span>
               {#if n.kind === 'client' && n.client?.link?.type === 'wifi'}<span class="sig"><SignalBars dbm={n.client.link.signal} /></span>{/if}
-              {#if (n.kind === 'port' || n.kind === 'ssid')}<span class="count">{n.count}</span>{/if}
+              {#if (n.kind === 'port' || n.kind === 'ssid') && !n.uplink}<span class="count">{n.count}</span>{/if}
             </button>
           {/each}
         </div>
@@ -121,11 +121,22 @@
       <div class="stat-row"><span>SSID</span><b>{w.ssid}</b></div>
       <div class="stat-row"><span>Interface</span><b class="mono">{w.ifname}</b></div>
       <div class="stat-row"><span>Band / channel</span><b>{w.band} · {w.channel ?? '—'}</b></div>
-      <div class="stat-row"><span>Clients</span><b class="num">{w.clients.length}</b></div>
+      {#if w.role === 'sta'}
+        <div class="stat-row"><span>Role</span><b>Uplink (this router is a client of this network)</b></div>
+        {#if w.clients[0]?.signal !== undefined}<div class="stat-row"><span>Signal</span><b class="num"><SignalBars dbm={w.clients[0].signal} /> {w.clients[0].signal} dBm</b></div>{/if}
+      {:else}
+        <div class="stat-row"><span>Clients</span><b class="num">{w.clients.length}</b></div>
+      {/if}
     {:else if cur.kind === 'internet'}
       {@const w = cur.iface}
       {#if w}
         <div class="stat-row"><span>Interface</span><b>{w.interface} · {w.l3_device}</b></div>
+        {#if cur.wifi}
+          {@const u = cur.wifi}
+          <div class="stat-row"><span>Connected through</span><b>Wi-Fi · {u.ssid}</b></div>
+          <div class="stat-row"><span>Band / channel</span><b>{u.band} · {u.channel ?? '—'}</b></div>
+          {#if u.clients[0]?.signal !== undefined}<div class="stat-row"><span>Signal</span><b class="num"><SignalBars dbm={u.clients[0].signal} /> {u.clients[0].signal} dBm</b></div>{/if}
+        {/if}
         <div class="stat-row"><span>Protocol</span><b>{w.proto.toUpperCase()}</b></div>
         {#if w['ipv4-address']?.[0]}<div class="stat-row"><span>Public IP</span><b class="num">{cidr(w['ipv4-address'][0])}</b></div>{/if}
         <div class="stat-row"><span>Gateway</span><b class="num">{w.route?.find((r) => r.target === '0.0.0.0')?.nexthop ?? '—'}</b></div>

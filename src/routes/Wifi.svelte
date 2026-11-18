@@ -43,6 +43,7 @@
   // ---------- live data helpers
   const liveFor = (radio: string) => map.wifi.filter((w) => w.radio === radio);
   const clientsOf = (ssid: Ssid) => map.wifi.find((w) => w.section === ssid.section)?.clients.length ?? 0;
+  const uplinkOf = (ssid: Ssid) => map.wifi.find((w) => w.section === ssid.section)?.clients[0];
   const wifiClients = $derived(map.clients.filter((c) => c.link?.type === 'wifi'));
   const ifnameOfSsid = (ssid: string) => map.wifi.find((w) => w.ssid === ssid)?.ifname;
 
@@ -164,10 +165,10 @@
             {#each wl.ssids.filter((s) => s.device === r.section) as s (s.section)}
               <tr class:off-row={s.disabled}>
                 <td><Toggle checked={!s.disabled} onchange={() => toggleSsid(s)} /></td>
-                <td><b>{s.ssid || '(no name)'}</b>{#if s.hidden}<span class="tag">hidden</span>{/if}{#if s.isolate}<span class="tag">isolated</span>{/if}{#if s.mode !== 'ap'}<span class="tag">{s.mode}</span>{/if}</td>
+                <td><b>{s.ssid || '(no name)'}</b>{#if s.hidden}<span class="tag">hidden</span>{/if}{#if s.isolate}<span class="tag">isolated</span>{/if}{#if s.mode === 'sta'}<span class="tag">uplink</span>{:else if s.mode !== 'ap'}<span class="tag">{s.mode}</span>{/if}</td>
                 <td class="muted">{encLabel(s.encryption)}</td>
                 <td class="num">{s.network}</td>
-                <td class="num">{s.disabled ? '—' : clientsOf(s)}</td>
+                <td class="num">{#if s.disabled}—{:else if s.mode === 'sta'}{@const l = uplinkOf(s)}{#if l}<span class="muted">Connected{l.signal !== undefined ? ` · ${l.signal} dBm` : ''}</span>{:else}<span class="muted">Not connected</span>{/if}{:else}{clientsOf(s)}{/if}</td>
                 <td><div class="row-actions">
                   <button class="btn icon" aria-label="Edit SSID" onclick={() => (sf = editSsid(s))}><Icon name="settings" size={15} /></button>
                   {#if confirmDel === s.section}
