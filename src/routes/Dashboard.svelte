@@ -54,7 +54,7 @@
   const online = $derived(clients.filter((c) => c.active).length);
   const segs = $derived.by(() => {
     const m = new Map<string, number>();
-    clients.forEach((c) => m.set(c.kind, (m.get(c.kind) ?? 0) + 1));
+    clients.filter((c) => c.active).forEach((c) => m.set(c.kind, (m.get(c.kind) ?? 0) + 1));
     return [...m].sort((a, b) => b[1] - a[1]).map(([k, v]) => ({ label: KIND[k][0], value: v, color: KIND[k][1] }));
   });
 
@@ -124,14 +124,14 @@
         <div class="card">
           <div class="card-title"><h2>Clients</h2><a href="#/clients">View all</a></div>
           <div class="cl">
-            <Donut {segs} center={String(clients.length)} sub="devices" />
+            <Donut {segs} center={String(online)} sub="online" />
             <ul>
               {#each segs.slice(0, 6) as s}
                 <li><i style:background={s.color}></i><span>{s.label}</span><b class="num">{s.value}</b></li>
               {/each}
             </ul>
           </div>
-          <div class="online"><span class="pill"><i class="dot ok"></i><b class="num">{online}</b> online now</span><span class="faint small">{clients.length - online} offline</span></div>
+          <div class="online"><span class="small"><b class="num">{clients.length}</b> <span class="faint">total</span></span><span class="faint small">{clients.length - online} offline</span></div>
         </div>
 
         <div class="card">
