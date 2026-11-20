@@ -4,7 +4,7 @@
 // threaded and would deadlock on itself. Wifi data is fetched by the frontend instead.
 'use strict';
 
-import { readfile, lsdir, stat, popen, access } from 'fs';
+import { readfile, writefile, lsdir, stat, lstat, popen, access, mkdir, unlink, chmod, rename } from 'fs';
 import { cursor } from 'uci';
 
 const HISTORY_FILE = '/tmp/lumen/history.json';
@@ -394,21 +394,163 @@ function read_apps() {
 	return sort(out, (a, b) => a.title < b.title ? -1 : a.title > b.title ? 1 : 0);
 }
 
-// ---- Web terminal (ttyd). Read its config here: without luci-app-ttyd the session has no ACL for uci ttyd.
+// ---- Web terminal (ttyd). Optional: only installed when the user asks for it on the Terminal page.
+// Its config is read and written here because without luci-app-ttyd the session has no uci ACL for it.
+// Lumen sets it up one of three ways, picked by the page:
+//   proxy: behind nginx at /lumen-terminal/, ttyd on a UNIX socket only (no TCP port at all)
+//   ssl:   ttyd on the LAN port with SSL, using uhttpd's certificate (panel opened over HTTPS)
+//   plain: ttyd on the LAN port over HTTP (panel opened over HTTP)
+// In every mode ttyd runs term-login.sh: a one-time ticket from this plugin opens a shell without a
+// second password prompt, anything else gets the normal login.
+const TERM_LOGIN = '/usr/libexec/lumen/term-login.sh';
+const TERM_SOCK = '/var/run/lumen-ttyd.sock';
+const TERM_NGINX = '/etc/nginx/conf.d/lumen-terminal.locations';
+const TERM_TICKETS = '/tmp/lumen/term';
+const TERM_PEM = '/etc/lumen/ttyd';   // .crt / .key: uhttpd's certificate in the PEM form ttyd needs
+const NGINX_LOCATION = `# Lumen web terminal: ttyd behind this server, listening on a UNIX socket only. Managed by Lumen
+# (Terminal page); removed when the terminal or Lumen is removed.
+location /lumen-terminal/ {
+	proxy_pass http://unix:${TERM_SOCK}:/;
+	proxy_http_version 1.1;
+	proxy_set_header Host $http_host;
+	proxy_set_header Upgrade $http_upgrade;
+	proxy_set_header Connection "upgrade";
+	proxy_read_timeout 1d;
+	proxy_buffering off;
+}
+`;
+
+function web_server() {
+	if (system('/etc/init.d/nginx enabled >/dev/null 2>&1') == 0 && access('/etc/nginx/conf.d')) return 'nginx';
+	return 'uhttpd';
+}
+
+// uhttpd's certificate and key are usually DER (px5g); ttyd only reads PEM. PEM input is copied as is.
+function pem(der, label) {
+	let b = b64enc(der), out = `-----BEGIN ${label}-----\n`;
+	for (let i = 0; i < length(b); i += 64) out += substr(b, i, 64) + '\n';
+	return out + `-----END ${label}-----\n`;
+}
+function key_label(der) {
+	// SEQUENCE { INTEGER version, ... }: SEC1 EC (version 1, then OCTET STRING), PKCS#1 RSA (0, INTEGER), PKCS#8 (0, SEQUENCE)
+	let i = ord(der, 1) & 0x80 ? 2 + (ord(der, 1) & 0x7f) : 2;
+	let ver = ord(der, i + 2), next = ord(der, i + 3);
+	return (ver == 1 && next == 0x04) ? 'EC PRIVATE KEY' : (ver == 0 && next == 0x02) ? 'RSA PRIVATE KEY' : 'PRIVATE KEY';
+}
+function term_pem(cert, key) {
+	let c = readfile(cert), k = readfile(key);
+	if (!c || !k) return null;
+	mkdir('/etc/lumen', 0o755);
+	let pc = index(c, '-----BEGIN') == 0 ? c : pem(c, 'CERTIFICATE');
+	let pk = index(k, '-----BEGIN') == 0 ? k : pem(k, key_label(k));
+	writefile(TERM_PEM + '.crt', pc);
+	writefile(TERM_PEM + '.key.new', pk); chmod(TERM_PEM + '.key.new', 0o600); rename(TERM_PEM + '.key.new', TERM_PEM + '.key');
+	return [TERM_PEM + '.crt', TERM_PEM + '.key'];
+}
+
+function ttyd_section(c) {
+	let name = null;
+	c.foreach('ttyd', 'ttyd', (s) => { if (!name) name = s['.name']; });
+	return name;
+}
+
 function terminal_info() {
-	if (!access('/usr/bin/ttyd', 'x')) return { installed: false };
-	let c = cursor(), sec = null;
-	c.foreach('ttyd', 'ttyd', (s) => { if (!sec) sec = s; });
+	if (!access('/usr/bin/ttyd', 'x')) return { installed: false, server: web_server() };
+	let c = cursor(), sid = ttyd_section(c), sec = sid ? c.get_all('ttyd', sid) : null;
+	let ours = sec?.command == TERM_LOGIN && sec?.url_arg == '1';
+	let mode = !ours ? 'custom'
+		: (sec.interface == TERM_SOCK && access(TERM_NGINX)) ? 'proxy'
+		: sec.ssl == '1' ? (sec.ssl_cert == TERM_PEM + '.crt' && access(TERM_PEM + '.crt') ? 'ssl' : 'custom') : 'plain';
 	return {
-		installed: true, configured: !!sec,
+		installed: true, configured: !!sec, mode, server: web_server(),
 		port: sec?.port ?? '7681', ssl: sec?.ssl == '1', url_override: sec?.url_override ?? '',
 		interface: sec?.interface ?? '', luci_app: !!access('/usr/share/luci/menu.d/luci-app-ttyd.json'),
 		running: system('/etc/init.d/ttyd running >/dev/null 2>&1') == 0
 	};
 }
 
+function nginx_reload() {
+	system('(sleep 1; /etc/init.d/nginx reload) >/dev/null 2>&1 &');
+}
+
+function terminal_setup(mode) {
+	if (!(mode in ['proxy', 'ssl', 'plain', 'none'])) return { error: 'unsupported mode' };
+	let had_nginx = !!access(TERM_NGINX);
+	if (mode != 'proxy' && had_nginx) { unlink(TERM_NGINX); nginx_reload(); }
+	if (!access('/usr/bin/ttyd', 'x')) return mode == 'none' ? { ok: true } : { error: 'the terminal (ttyd) is not installed' };
+	if (!access(TERM_LOGIN, 'x')) return { error: 'this Lumen installation is missing ' + TERM_LOGIN };
+
+	let c = cursor(), sid = ttyd_section(c);
+	if (mode == 'none') {
+		// leave a stock ttyd behind: the normal login, and never a port Lumen had kept closed
+		if (sid && c.get('ttyd', sid, 'command') == TERM_LOGIN) {
+			c.set('ttyd', sid, 'command', '/bin/login');
+			c.delete('ttyd', sid, 'url_arg');
+			if (c.get('ttyd', sid, 'interface') == TERM_SOCK) c.set('ttyd', sid, 'enable', '0');
+			c.commit('ttyd');
+			system('/etc/init.d/ttyd restart >/dev/null 2>&1');
+		}
+		unlink(TERM_PEM + '.crt'); unlink(TERM_PEM + '.key');
+		return { ok: true };
+	}
+
+	if (mode == 'proxy' && web_server() != 'nginx') return { error: 'this router does not use nginx' };
+	if (mode == 'ssl') {
+		let cert = c.get('uhttpd', 'main', 'cert') ?? '/etc/uhttpd.crt', key = c.get('uhttpd', 'main', 'key') ?? '/etc/uhttpd.key';
+		if (!access(cert) || !access(key)) return { error: 'the router has no HTTPS certificate yet (enable HTTPS for the panel first)' };
+		let files = term_pem(cert, key);
+		if (!files) return { error: 'could not read the router certificate' };
+		c.set('ttyd', sid ?? (sid = c.add('ttyd', 'ttyd')), 'ssl', '1');
+		c.set('ttyd', sid, 'ssl_cert', files[0]);
+		c.set('ttyd', sid, 'ssl_key', files[1]);
+	}
+	sid = sid ?? c.add('ttyd', 'ttyd');
+	c.set('ttyd', sid, 'enable', '1');
+	c.set('ttyd', sid, 'command', TERM_LOGIN);
+	c.set('ttyd', sid, 'url_arg', '1');
+	// refuse websockets opened by other sites. Not in ssl mode: there ttyd speaks HTTP/2, has no Host header to
+	// compare and refuses every connection. The one-time ticket is what grants a shell in every mode anyway.
+	if (mode == 'ssl') c.delete('ttyd', sid, 'check_origin'); else c.set('ttyd', sid, 'check_origin', '1');
+	if (mode != 'ssl') {
+		c.delete('ttyd', sid, 'ssl'); c.delete('ttyd', sid, 'ssl_cert'); c.delete('ttyd', sid, 'ssl_key');
+		unlink(TERM_PEM + '.crt'); unlink(TERM_PEM + '.key');
+	}
+	c.set('ttyd', sid, 'interface', mode == 'proxy' ? TERM_SOCK : '@lan');
+	c.commit('ttyd');
+
+	if (mode == 'proxy' && readfile(TERM_NGINX) != NGINX_LOCATION) {
+		writefile(TERM_NGINX + '.new', NGINX_LOCATION);
+		rename(TERM_NGINX + '.new', TERM_NGINX);
+		nginx_reload();
+	}
+	system('/etc/init.d/ttyd enable >/dev/null 2>&1; /etc/init.d/ttyd restart >/dev/null 2>&1');
+	return { ok: true, mode };
+}
+
+// A one-time ticket that lets the panel open the terminal without a second password prompt.
+function terminal_ticket() {
+	mkdir('/tmp/lumen', 0o755);
+	mkdir(TERM_TICKETS, 0o700);
+	let st = lstat(TERM_TICKETS);
+	if (st?.type != 'directory' || st?.uid != 0) return { error: 'unsafe ticket directory' };
+	chmod(TERM_TICKETS, 0o700);
+	let now = time();
+	for (let f in lsdir(TERM_TICKETS) ?? []) {
+		let fs = lstat(`${TERM_TICKETS}/${f}`);
+		if (!fs || now - fs.mtime > 60) unlink(`${TERM_TICKETS}/${f}`);
+	}
+	let raw = readfile('/dev/urandom', 16);
+	if (length(raw) != 16) return { error: 'no randomness available' };
+	let t = '';
+	for (let i = 0; i < 16; i++) t += sprintf('%02x', ord(raw, i));
+	writefile(`${TERM_TICKETS}/${t}`, '');
+	return { ticket: t, expires: 60 };
+}
+
 const methods = {
 	terminal: { call: function(request) { return terminal_info(); } },
+	terminal_setup: { args: { mode: 'mode' }, call: function(request) { return terminal_setup(request.args?.mode); } },
+	terminal_ticket: { call: function(request) { return terminal_ticket(); } },
 	apps: { call: function(request) { return { apps: read_apps(), luci: !!access('/www/cgi-bin/luci') }; } },
 	version: { call: function(request) { return lumen_version(); } },
 	self_status: { call: function(request) { return self_status(); } },

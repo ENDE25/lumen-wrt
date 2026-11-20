@@ -236,8 +236,16 @@ LuCI and the rest of OpenWrt are never touched.
 - Lumen uses the router's own login and permission system (rpcd sessions and ACLs), the same one LuCI uses. It
   opens no new ports and adds nothing that works without signing in.
 - **No shell is installed by default.** The web terminal (`ttyd`) is optional: the Terminal page explains what it
-  opens (a root login prompt on port 7681 of your local network, over plain HTTP unless you enable SSL) and installs
-  it only if you confirm. It can be removed from the same page; uninstalling Lumen does not remove it.
+  opens and installs it only if you confirm. Lumen sets it up to fit the router:
+  - routers using **nginx**: it sits behind the panel's own web server at `/lumen-terminal/` and listens on a UNIX
+    socket only, so **no port is opened** on your network;
+  - routers using **uhttpd**: it listens on port 7681 of the LAN, over HTTPS with the router's certificate when
+    the panel is opened over HTTPS, over HTTP otherwise.
+
+  Opening it from Lumen uses a **one-time ticket** (valid for 60 seconds, usable once, only issued to a signed-in
+  root session), so there is no second password prompt; anyone else reaching it gets the normal login. It can be
+  removed from the same page. Uninstalling Lumen hands it back as a stock ttyd (turned off if it was only reachable
+  through Lumen).
 - Updates are only installed when you press *Update*, and only if signed with the release key pinned at install time.
 - Lumen refuses to run inside another site's frame, and the installer only uses private temporary files.
 - Like LuCI, the panel is served over plain HTTP by default: on an untrusted network, enable HTTPS on the router.

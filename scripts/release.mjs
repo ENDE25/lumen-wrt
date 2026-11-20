@@ -70,6 +70,7 @@ put(join(ROOT, 'openwrt/rpcd/lumen'), 'usr/share/rpcd/ucode/lumen');
 put(join(ROOT, 'openwrt/acl/lumen.json'), 'usr/share/rpcd/acl.d/lumen.json');
 put(join(ROOT, 'openwrt/bin/lumen-history.uc'), 'usr/libexec/lumen/history.uc');
 put(join(ROOT, 'openwrt/bin/lumen-pkg-job.sh'), 'usr/libexec/lumen/pkg-job.sh', 0o755);
+put(join(ROOT, 'openwrt/bin/lumen-term-login.sh'), 'usr/libexec/lumen/term-login.sh', 0o755);
 put(join(ROOT, 'openwrt/init/lumen-history'), 'etc/init.d/lumen-history', 0o755);
 put(join(ROOT, 'openwrt/config/lumen'), 'etc/config/lumen');
 

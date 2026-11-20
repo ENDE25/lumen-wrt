@@ -6,7 +6,7 @@
 			"uci": [ "lumen" ]
 		},
 		"write": {
-			"ubus": { "uci": [ "revert", "rollback", "changes" ], "lumen": [ "pkg_run", "self_run", "log_clear" ] },
+			"ubus": { "uci": [ "revert", "rollback", "changes" ], "lumen": [ "pkg_run", "self_run", "log_clear", "terminal_setup", "terminal_ticket" ] },
 			"uci": [ "lumen" ]
 		}
 	}

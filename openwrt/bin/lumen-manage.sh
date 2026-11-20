@@ -207,11 +207,33 @@ cmd_uninstall_files() {
 	else rm -f "$STATE/files.list" "$STATE/version.json" "$STATE/backup.tar.gz" "$STATE/release-key.pub"; rmdir "$STATE" 2>/dev/null; fi
 }
 
+# The web terminal is the user's own choice and stays installed, but it must not keep pointing at
+# Lumen's login script: back to the stock login. If Lumen had it behind nginx (no TCP port open),
+# turn it off rather than opening a port the user never had.
+terminal_unhook() {
+	rm -f /etc/nginx/conf.d/lumen-terminal.locations 2>/dev/null && [ -x /etc/init.d/nginx ] && /etc/init.d/nginx reload >/dev/null 2>&1
+	if [ -f /etc/lumen/ttyd.crt ]; then   # Lumen's PEM copy of the certificate: the terminal goes back to plain HTTP
+		for s in $(uci -q show ttyd | sed -n "s/^ttyd\.\([^.=]*\)=ttyd$/\1/p"); do
+			[ "$(uci -q get ttyd.$s.ssl_cert)" = /etc/lumen/ttyd.crt ] && { uci -q delete ttyd.$s.ssl; uci -q delete ttyd.$s.ssl_cert; uci -q delete ttyd.$s.ssl_key; }
+		done
+		rm -f /etc/lumen/ttyd.crt /etc/lumen/ttyd.key; rmdir /etc/lumen 2>/dev/null
+	fi
+	for s in $(uci -q show ttyd | sed -n "s/^ttyd\.\([^.=]*\)=ttyd$/\1/p"); do
+		[ "$(uci -q get ttyd.$s.command)" = /usr/libexec/lumen/term-login.sh ] || continue
+		uci set ttyd.$s.command=/bin/login; uci -q delete ttyd.$s.url_arg
+		if [ "$(uci -q get ttyd.$s.interface)" = /var/run/lumen-ttyd.sock ]; then
+			uci set ttyd.$s.enable=0; say "The web terminal was turned off (it was only reachable through Lumen)."
+		fi
+		uci commit ttyd; /etc/init.d/ttyd restart >/dev/null 2>&1
+	done
+}
+
 cmd_uninstall() { # [--purge]
 	[ "$(id -u)" = 0 ] || die "run as root"
 	[ -f "$STATE/files.list" ] || die "no installation record found ($STATE/files.list): Lumen was not installed with this tool"
 	purge=keep; [ "$1" = --purge ] && purge=purge
 	say "Removing Lumen ..."
+	terminal_unhook
 	cmd_uninstall_files $purge
 	/etc/init.d/rpcd restart >/dev/null 2>&1
 	if [ $purge = purge ]; then say "Lumen and all its settings were removed."
