@@ -42,7 +42,7 @@
     <h1>Terminal</h1>
     {#if loaded && installed && running}
       <div class="acts">
-        <button class="btn sm" onclick={() => nonce++}><Icon name="refresh" size={14} /> New session</button>
+        {#if !mixed}<button class="btn sm" onclick={() => nonce++}><Icon name="refresh" size={14} /> New session</button>{/if}
         <a class="btn sm" href={url} target="_blank" rel="noopener">Open in a new window</a>
       </div>
     {/if}

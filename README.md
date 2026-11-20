@@ -204,6 +204,10 @@ in light and dark themes, on desktop and phone.
 - Before changing anything the manager backs up the installed files. If the new version does not pass its health
   check it is **rolled back automatically**. Updates are only accepted when signed with the key pinned at install time.
 - `lumen check` and `lumen status` tell you what is installed and whether something newer exists.
+- Each update is carried out by the installer of the version being installed (once its signature is verified), so
+  fixes to the update process itself take effect straight away.
+- **Routers that use nginx instead of uhttpd** (`luci-nginx`, pulled in by some apps such as Speedify) need 0.20.1 or
+  later to update from the panel. On an older version, run the install one-liner above once.
 
 ### Uninstall
 

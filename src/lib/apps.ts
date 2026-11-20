@@ -29,7 +29,7 @@ const ICONS: Record<string, string> = {
   attendedsysupgrade: 'package', adblock: 'shield', 'adblock-fast': 'shield', banip: 'shield',
   wireguard: 'shield', openvpn: 'shield', sqm: 'stats', nlbwmon: 'stats', vnstat2: 'stats',
   'https-dns-proxy': 'dns', dnscrypt: 'dns', samba4: 'server', ksmbd: 'server', minidlna: 'tv',
-  mwan3: 'network', 'travelmate': 'wifi', commands: 'terminal', acme: 'shield',
+  mwan3: 'network', speedify: 'network', 'travelmate': 'wifi', commands: 'terminal', acme: 'shield',
 };
 export const appIcon = (a: App) => ICONS[a.id] ?? ICONS[a.pkg.replace(/^luci-app-/, '')] ?? 'package';
 
