@@ -2,7 +2,7 @@
 html, body { margin: 0; height: 100%; }
 /* Base UI scale: the panel looks oversized at 100%. Also used to size full-height frames.
    Phones keep the previous, larger scale so text stays readable. */
-:root { --zoom: 0.7; }
+:root { --zoom: 0.77; }
 @media (max-width: 760px) { :root { --zoom: 0.88; } }
 html { zoom: var(--zoom); }
 body {

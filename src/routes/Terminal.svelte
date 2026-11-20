@@ -201,6 +201,8 @@
   .risk { text-align: left; max-width: 560px; display: grid; gap: 10px; padding: 16px 18px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); }
   .risk ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; color: var(--text-2); }
   .hint { margin: -8px 0 10px; }
+  /* the shell is shown at the browser's own size: the panel's zoom would shrink the terminal font */
+  iframe.term { zoom: calc(1 / var(--zoom)); height: calc(100vh - 150px * var(--zoom)); }
   /* fills the window under the page head (html is zoomed by --zoom, hence the division) */
   .term { display: block; width: 100%; height: calc(100vh / var(--zoom) - 150px); min-height: 420px; border: 1px solid var(--border); border-radius: var(--radius); background: #2b2b2b; }
   .mock { padding: 12px 14px; font: 13px ui-monospace, monospace; color: #e8e8e8; }
