@@ -38,7 +38,17 @@
   let series = $state<ClientSeries | null>(null);
   async function loadClients() { try { ct = await getClientTraffic(cRange); } catch { ct = null; } }
   $effect(() => { cRange; loadClients(); });
-  const rows = $derived(clientRows(ct, clientList));
+  const allRows = $derived(clientRows(ct, clientList));
+  // On a LAN-side interface (a Wi-Fi network, a port) the table shows the devices connected to it now.
+  // On the WAN or a bridge it shows every device. Per-device totals are not split by interface.
+  const devOf = $derived(new Map(clientList.map((c) => [c.mac.toLowerCase(), c.link?.dev])));
+  const scoped = $derived(!!dev && !isWan(dev) && live.devices[dev]?.type !== 'Bridge');
+  const rows = $derived.by(() => {
+    if (!scoped) return allRows;
+    const r = allRows.filter((x) => devOf.get(x.mac.toLowerCase()) === dev);
+    const top = Math.max(1, ...r.map((x) => x.all));
+    return r.map((x) => ({ ...x, pct: (x.all / top) * 100 }));
+  });
   async function openClient(r: ClientRow) {
     selClient = r; series = null;
     try { series = await getClientSeries(r.mac, cRange); } catch { series = { t: [], rx: [], tx: [] }; }
@@ -61,6 +71,13 @@
   });
   const sum = (a: number[] = []) => a.reduce((x, y) => x + y, 0);
 
+  // Everything is shown from your devices' point of view: Download = data coming in from the Internet.
+  // On a WAN link that is what the router receives; on a LAN-side interface (Wi-Fi, ports, the bridge) it is
+  // what the router sends to the devices, so received/sent are swapped there.
+  const wanDevs = $derived(new Set(live.wans.map((w) => w.iface.l3_device ?? w.dev).filter(Boolean) as string[]));
+  function isWan(d: string) { return wanDevs.size ? wanDevs.has(d) : d === live.wan?.l3_device; }
+  const flip = $derived(!!dev && !isWan(dev));
+
   // Resample onto a uniform grid so gaps (collector stopped) show as zero instead of stretching the line.
   // Very fine data (short intervals over long ranges) is merged so the chart never draws more than ~1500 points.
   const MAX_POINTS = 1500;
@@ -77,7 +94,8 @@
     const lastT = maxOf(h.t ?? []);
     const last = Math.min(m - 1, Math.max(0, Math.floor((lastT - start) / step)));
     const data: Bucket[] = [];
-    for (let i = 0; i <= last; i++) data.push({ t: start + i * step, rx: rx[i], tx: tx[i] });
+    // rx = Download, tx = Upload (see flip)
+    for (let i = 0; i <= last; i++) data.push(flip ? { t: start + i * step, rx: tx[i], tx: rx[i] } : { t: start + i * step, rx: rx[i], tx: tx[i] });
     return { data, step, start, end };
   });
 
@@ -95,7 +113,7 @@
     const total = devices.map((d) => {
       let rx = 0, tx = 0;
       h!.t!.forEach((t, i) => { if (t >= grid.start) { rx += h!.rx![d][i]; tx += h!.tx![d][i]; } });
-      return { d, rx, tx, all: rx + tx };
+      return isWan(d) ? { d, down: rx, up: tx, all: rx + tx } : { d, down: tx, up: rx, all: rx + tx };
     }).sort((a, b) => b.all - a.all);
     const top = Math.max(1, total[0]?.all ?? 1);
     return total.map((x) => ({ ...x, pct: (x.all / top) * 100 }));
@@ -126,8 +144,8 @@
     </div>
   {:else if grid && totals}
     <div class="stats">
-      <div class="card"><span class="k">Received</span><b class="v num" style="color:var(--rx)"><Icon name="down" size={18} />{bytes(totals.rx)}</b><small class="faint">peak {bps(totals.peakRx)}</small></div>
-      <div class="card"><span class="k">Sent</span><b class="v num" style="color:var(--tx)"><Icon name="up" size={18} />{bytes(totals.tx)}</b><small class="faint">peak {bps(totals.peakTx)}</small></div>
+      <div class="card"><span class="k">Download</span><b class="v num" style="color:var(--rx)"><Icon name="down" size={18} />{bytes(totals.rx)}</b><small class="faint">peak {bps(totals.peakRx)} · {flip ? 'sent to devices' : 'received from the Internet'}</small></div>
+      <div class="card"><span class="k">Upload</span><b class="v num" style="color:var(--tx)"><Icon name="up" size={18} />{bytes(totals.tx)}</b><small class="faint">peak {bps(totals.peakTx)} · {flip ? 'sent by devices' : 'sent to the Internet'}</small></div>
       <div class="card"><span class="k">Average</span><b class="v num">{bps(totals.avgRx + totals.avgTx)}</b><small class="faint">↓ {bps(totals.avgRx)} · ↑ {bps(totals.avgTx)}</small></div>
       <div class="card"><span class="k">Recording since</span><b class="v sm">{since || '—'}</b><small class="faint">{h?.running ? 'collector running' : 'collector stopped'}</small></div>
     </div>
@@ -135,13 +153,14 @@
     <div class="card" style="margin-top:16px" class:dim={loading}>
       <div class="card-title">
         <h2>{dev} <span class="faint">· {RANGES.find((r) => r.v === range)!.label}</span></h2>
-        <span class="legend"><i style="background:var(--rx)"></i>Received <i style="background:var(--tx)"></i>Sent</span>
+        <span class="legend"><i style="background:var(--rx)"></i>Download <i style="background:var(--tx)"></i>Upload</span>
       </div>
-      <HistoryChart data={grid.data} step={grid.step} start={grid.start} end={grid.end} />
+      <HistoryChart data={grid.data} step={grid.step} start={grid.start} end={grid.end} labels={['Download', 'Upload']} />
     </div>
 
     <div class="card" style="margin-top:16px">
-      <div class="card-title"><h2>Clients <span class="faint">· {cLabel}</span></h2>{#if range === '90d'}<span class="faint small">per-client data is kept for 30 days</span>{/if}</div>
+      <div class="card-title"><h2>Clients{scoped ? ` on ${dev}` : ''} <span class="faint">· {cLabel}</span></h2>{#if range === '90d'}<span class="faint small">per-client data is kept for 30 days</span>{/if}</div>
+      {#if scoped}<p class="faint small scope">Devices connected to {dev} right now, with everything they used in this period (also while connected elsewhere). <button class="linkbtn" onclick={() => (dev = live.wan?.l3_device && devices.includes(live.wan.l3_device) ? live.wan.l3_device : dev)}>Show all devices</button></p>{/if}
       {#if ct?.offload}
         <p class="warn"><Icon name="alert" size={16} />Flow offloading is enabled on this router: established connections bypass the counters, so these numbers are lower than reality.</p>
       {/if}
@@ -149,6 +168,8 @@
         <p class="muted">Per-client data is unavailable. Deploy the latest collector (<code>npm run deploy</code>).</p>
       {:else if !ct.enabled}
         <p class="muted">Per-client accounting is turned off (<code>option clients '0'</code> in <code>/etc/config/lumen</code>).</p>
+      {:else if !rows.length && scoped}
+        <p class="muted">No device connected to {dev} right now has recorded traffic in this period.</p>
       {:else if !rows.length}
         <p class="muted">No client traffic recorded yet. Lumen counts what LAN devices send and receive <em>through</em> the router (mostly Internet use); it appears here a few minutes after the first connections.</p>
       {:else}
@@ -170,11 +191,11 @@
     <div class="card" style="margin-top:16px">
       <div class="card-title"><h2>By interface</h2></div>
       <div class="tw"><table class="tbl">
-        <thead><tr><th>Interface</th><th>Received</th><th>Sent</th><th>Total</th><th class="bar"></th></tr></thead>
+        <thead><tr><th>Interface</th><th>Download</th><th>Upload</th><th>Total</th><th class="bar"></th></tr></thead>
         <tbody>
           {#each perDevice as p (p.d)}
             <tr class="click" class:sel={p.d === dev} tabindex="0" onclick={() => (dev = p.d)} onkeydown={(e) => e.key === 'Enter' && (dev = p.d)}>
-              <td class="mono"><b>{p.d}</b></td><td class="num">{bytes(p.rx)}</td><td class="num">{bytes(p.tx)}</td><td class="num"><b>{bytes(p.all)}</b></td>
+              <td class="mono"><b>{p.d}</b>{#if isWan(p.d)}<small class="faint tagi">Internet</small>{/if}</td><td class="num">{bytes(p.down)}</td><td class="num">{bytes(p.up)}</td><td class="num"><b>{bytes(p.all)}</b></td>
               <td class="bar"><i style:width="{p.pct}%"></i></td>
             </tr>
           {/each}
@@ -210,6 +231,9 @@
   .v { font-size: 24px; font-weight: 650; display: inline-flex; align-items: center; gap: 4px; }
   .v.sm { font-size: 16px; line-height: 1.5; }
   .small { font-size: 12px; }
+  .scope { margin: -8px 0 10px; }
+  .tagi { margin-left: 8px; font-family: var(--font); }
+  .linkbtn { background: none; border: 0; padding: 0; color: var(--accent); font: inherit; cursor: pointer; }
   .warn { display: flex; gap: 8px; align-items: center; background: color-mix(in srgb, var(--warn) 14%, transparent); border-radius: 8px; padding: 9px 12px; font-size: 13px; margin: -4px 0 12px; }
   .warn :global(svg) { color: var(--warn); flex: none; }
   .who { display: inline-flex; align-items: center; gap: 12px; }
