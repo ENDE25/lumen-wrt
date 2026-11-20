@@ -1,2 +1,0 @@
-untrusted comment: signature from Lumen release key
-RWQgIb0nNb/fiIffBold++pjCWdYSRRGDmARX5eO2G+a8BVwu9Ib3JxJiuwhxR7JN6dsd77NPzLqqjmg9PFXOOBfK3Z+djytAAw=
