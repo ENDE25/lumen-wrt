@@ -57,6 +57,9 @@
 
   onMount(() => {
     loadLists();
+    // #/updates?find=luci-app- opens the search with that term (used by the Apps page)
+    const f = /[?&]find=([^&]*)/.exec(location.hash);
+    if (f) { tab = 'install'; q = decodeURIComponent(f[1]); tick().then(() => document.getElementById('packages')?.scrollIntoView({ block: 'start' })); }
     getJob().then((j) => { if (j.state === 'running') { showJob = true; job = j; follow(); } else if (j.state === 'done' && j.ended && Date.now() / 1000 - j.ended < 120) { showJob = true; job = j; } }).catch(() => {});
   });
 

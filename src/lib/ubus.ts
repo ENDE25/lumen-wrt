@@ -51,9 +51,23 @@ export async function login(username: string, password: string): Promise<void> {
   const r = await rpc(req(1, NULL_SESSION, 'session', 'login', { username, password }));
   if (r.error || r.result?.[0] !== 0) throw new UbusError(r.error?.code ?? r.result?.[0] ?? -1, 'Wrong username or password');
   store(r.result[1].ubus_rpc_session);
+  // Also sign in to LuCI, so the add-on apps (which only have LuCI pages) open without a second login.
+  luciLogin(username, password).catch(() => {});
+}
+
+/** Sign in to LuCI: it keeps its own session in a cookie for /cgi-bin/luci. Resolves true on success. */
+export async function luciLogin(username: string, password: string): Promise<boolean> {
+  if (MOCK) return true;
+  const res = await fetch('/cgi-bin/luci/', {
+    method: 'POST', credentials: 'same-origin', redirect: 'manual',
+    body: new URLSearchParams({ luci_username: username, luci_password: password }),
+  });
+  // LuCI answers a good login with a redirect, a bad one with the login form again (403)
+  return res.type === 'opaqueredirect' || (res.status >= 300 && res.status < 400);
 }
 
 export function logout() {
+  if (sid && !MOCK) fetch('/cgi-bin/luci/admin/logout', { credentials: 'same-origin', redirect: 'manual' }).catch(() => {});
   store(null);
   authLost.forEach((f) => f());
 }

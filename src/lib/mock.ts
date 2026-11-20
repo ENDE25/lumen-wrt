@@ -79,7 +79,7 @@ const WIRED: Record<string, string> = { raspberrypi: 'lan1', 'NAS-Synology': 'la
 
 // Tiny in-memory UCI so the DHCP/DNS page is fully usable in demo mode.
 const FILES: Record<string, string> = { '/etc/dropbear/authorized_keys': 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl marta@laptop\n', '/etc/crontabs/root': '# Reboot every Sunday at 4:30\n30 4 * * 0 /sbin/reboot\n' };
-const INIT: Record<string, { start: number; enabled: boolean; running: boolean }> = Object.fromEntries(['boot:10', 'sysinit:11', 'network:20', 'firewall:19', 'dnsmasq:19', 'odhcpd:50', 'dropbear:19', 'uhttpd:50', 'rpcd:12', 'cron:50', 'sysntpd:99', 'lumen-history:95', 'done:95'].map((x) => { const [n, o] = x.split(':'); return [n, { start: +o, enabled: true, running: n !== 'sysntpd' }]; }));
+const INIT: Record<string, { start: number; enabled: boolean; running: boolean }> = Object.fromEntries(['boot:10', 'sysinit:11', 'network:20', 'firewall:19', 'dnsmasq:19', 'odhcpd:50', 'dropbear:19', 'uhttpd:50', 'rpcd:12', 'cron:50', 'sysntpd:99', 'lumen-history:95', 'done:95', 'adblock:30', 'ddns:95', 'ttyd:99', 'miniupnpd:94'].map((x) => { const [n, o] = x.split(':'); return [n, { start: +o, enabled: true, running: !['sysntpd', 'miniupnpd'].includes(n) }]; }));
 const UCI: Record<string, Record<string, any>> = {
   system: {
     cfg01e48a: { '.name': 'cfg01e48a', '.type': 'system', '.anonymous': true, hostname: 'lumen-demo', log_size: '128', zonename: 'Europe/Madrid', timezone: 'CET-1CEST,M3.5.0,M10.5.0/3' },
@@ -180,6 +180,15 @@ function mockRunJob(action: string, pkgs: string[]) {
     mJob = { ...mJob, state: 'done', code: 0, ended: Math.floor(Date.now() / 1000) };
   }, 700 * (steps.length + 1) + 300);
 }
+
+const v = '26.320.60423~5331286';
+const MOCK_APPS = [
+  { id: 'adblock', pkg: 'luci-app-adblock', title: 'Adblock', path: 'admin/services/adblock', section: 'services', tabs: [{ path: 'admin/services/adblock/overview', title: 'Overview' }, { path: 'admin/services/adblock/dnsreport', title: 'DNS Report' }], version: v, description: 'LuCI support for Adblock', service: 'adblock' },
+  { id: 'ddns', pkg: 'luci-app-ddns', title: 'Dynamic DNS', path: 'admin/services/ddns', section: 'services', tabs: [], version: v, description: 'LuCI Support for Dynamic DNS Client (ddns-scripts)', service: 'ddns' },
+  { id: 'ttyd', pkg: 'luci-app-ttyd', title: 'Terminal', path: 'admin/services/ttyd', section: 'services', tabs: [{ path: 'admin/services/ttyd/ttyd', title: 'Terminal' }, { path: 'admin/services/ttyd/config', title: 'Config' }], version: v, description: 'ttyd - Command-line tool for sharing terminal over the web', service: 'ttyd' },
+  { id: 'upnp', pkg: 'luci-app-upnp', title: 'UPnP IGD & PCP', path: 'admin/services/upnp', section: 'services', tabs: [], version: v, description: 'UPnP IGD & PCP/NAT-PMP configuration module', service: 'miniupnpd' },
+  { id: 'wol', pkg: 'luci-app-wol', title: 'Wake on LAN', path: 'admin/services/wol', section: 'services', tabs: [], version: v, description: 'LuCI Support for Wake-on-LAN', service: '' },
+];
 
 async function mockBase(obj: string, method: string, args: any = {}): Promise<any> {
   await new Promise((r) => setTimeout(r, 40 + Math.random() * 60));
@@ -378,6 +387,9 @@ async function mockBase(obj: string, method: string, args: any = {}): Promise<an
   }
   if (k === 'luci.setPassword') return {};
   if (k === 'luci.getTimezones') return { 'Europe/Madrid': { tzstring: 'CET-1CEST,M3.5.0,M10.5.0/3' }, 'Europe/London': { tzstring: 'GMT0BST,M3.5.0/1,M10.5.0' }, UTC: { tzstring: 'UTC0' }, 'America/New_York': { tzstring: 'EST5EDT,M3.2.0,M11.1.0' } };
+  if (k === 'lumen.apps') return { luci: true, apps: MOCK_APPS };
+  if (k === 'luci.wol.stat') return { etherwake: true, wakeonlan: false };
+  if (k === 'luci.wol.exec') return { code: 0, stdout: '', stderr: '' };
   if (k === 'rc.list') return INIT;
   if (k === 'rc.init') { const i = INIT[args.name]; if (i) { if (args.action === 'enable') i.enabled = true; if (args.action === 'disable') i.enabled = false; if (args.action === 'stop') i.running = false; if (args.action === 'start' || args.action === 'restart') i.running = true; } return {}; }
   if (obj === 'file' && method === 'exec') {

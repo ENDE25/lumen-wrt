@@ -101,6 +101,11 @@ in light and dark themes, on desktop and phone.
 ### Updates
 - **One page for everything that updates**: the OpenWrt release (Lumen downloads the official image for your device in your browser, verifies its checksum and sends it to the router, or you can upload your own sysupgrade image), **packages** (browse installed ones and available updates, search about 11 000, install, remove or upgrade, always with a **preview of exactly what will change**), and **Lumen itself**. The router checks every firmware image first, and you choose whether to keep your settings.
 
+### Apps
+- **Every LuCI add-on installed on the router** (`luci-app-…`: Wake on LAN, Dynamic DNS, AdBlock, WireGuard, Statistics…), found from LuCI's own menu files, with its service state and start / stop / restart.
+- Apps with a **Lumen panel** open in Lumen's own design (so far: **Wake on LAN**, to wake any known device or a MAC typed by hand). The rest show their **LuCI pages inside Lumen**, restyled to fit and following the light / dark theme; Lumen signs in to LuCI for you when you log in.
+- *Get more apps* opens the package search filtered to `luci-app-`.
+
 ### Services
 - Every startup script with its **running / failed state** (and exit code), **start at boot**, start / stop / restart, and **scheduled tasks** (cron).
 
@@ -351,7 +356,8 @@ src/
   lib/          ubus client, data layer, UCI + safe-apply, vendor lookup, live poller, stores
   components/   charts, drawers, toggles, sidebar, top bar, brand glyphs
   routes/       one file per page (Dashboard, Network Map, Traffic, Clients, Wi-Fi,
-                Firewall, DHCP & DNS, Updates, Services, Backup, Settings, Logs)
+                Firewall, DHCP & DNS, Apps, Updates, Services, Backup, Settings, Logs)
+  apps/         Lumen's own panels for add-on apps (registry in apps/index.ts)
   styles/       design tokens (light and dark) and base styles
 openwrt/
   rpcd/         the rpcd plugin (ucode)

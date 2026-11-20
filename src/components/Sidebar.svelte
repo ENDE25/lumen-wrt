@@ -20,6 +20,7 @@
       { id: 'dhcp', icon: 'dns', label: 'DHCP & DNS' },
     ],
     [
+      { id: 'apps', icon: 'apps', label: 'Apps' },
       { id: 'updates', icon: 'package', label: 'Updates' },
       { id: 'services', icon: 'services', label: 'Services' },
       { id: 'backup', icon: 'down', label: 'Backup' },

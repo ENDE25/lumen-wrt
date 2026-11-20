@@ -332,7 +332,70 @@ function self_run(action, purge) {
 	return { started: true };
 }
 
+// ---- Add-on apps: the LuCI apps installed on the router (luci-app-*). Each package drops a menu
+// description in /usr/share/luci/menu.d; read those the way LuCI does so Lumen can list and open them.
+const LUCI_MENU = '/usr/share/luci/menu.d';
+// LuCI itself, and apps whose job Lumen already does on its own pages.
+const APP_SKIP = /^luci-(base|mod-.*|app-(firewall|package-manager|lumen))\.json$/;
+// Apps whose daemon is not named after the app.
+const APP_DAEMON = { upnp: 'miniupnpd', statistics: 'collectd', wol: '', ttyd: 'ttyd' };
+
+function menu_dep_ok(dep) {
+	for (let cfg in keys(dep?.uci ?? {})) if (!access(`/etc/config/${cfg}`)) return false;
+	for (let path, kind in dep?.fs ?? {}) {
+		let st = stat(path);
+		if (!st) return false;
+		if (kind == 'directory' && st.type != 'directory') return false;
+		if (kind == 'executable' && !access(path, 'x')) return false;
+	}
+	return true;
+}
+
+function app_daemon(id, pkg, dep) {
+	if (id in APP_DAEMON) return APP_DAEMON[id];
+	let short = replace(pkg, /^luci-app-/, '');
+	for (let c in [id, short, ...keys(dep?.uci ?? {})]) if (access(`/etc/init.d/${c}`)) return c;
+	return '';
+}
+
+function read_apps() {
+	let pkgs = {};
+	for (let x in apk_query("--fields name,version,description --installed --from system 'luci-app-*'")) pkgs[x.name] = x;
+	let out = [], seen = {};
+	for (let f in sort(lsdir(LUCI_MENU) ?? [])) {
+		if (!match(f, /\.json$/) || match(f, APP_SKIP)) continue;
+		let menu;
+		try { menu = json(readfile(`${LUCI_MENU}/${f}`) ?? 'null'); } catch (e) { continue; }
+		if (type(menu) != 'object') continue;
+		let pkg = replace(f, /\.json$/, '');
+		for (let path in keys(menu)) {
+			// a top entry is one whose parent is not described in the same file
+			let parent = replace(path, /\/[^\/]+$/, '');
+			if (parent in menu) continue;
+			let node = menu[path];
+			if (!node?.title || !menu_dep_ok(node.depends)) continue;
+			let tabs = [];
+			for (let p in keys(menu))
+				if (index(p, path + '/') == 0 && !match(substr(p, length(path) + 1), /\//) && menu[p]?.title)
+					push(tabs, { path: p, title: menu[p].title, order: menu[p].order ?? 999 });
+			tabs = sort(tabs, (a, b) => a.order - b.order);
+			let id = replace(path, /^.*\//, '');
+			if (seen[id]) id = `${id}-${seen[id]}`;
+			seen[id] = (seen[id] ?? 0) + 1;
+			let info = pkgs[pkg] ?? {};
+			push(out, {
+				id, pkg, title: node.title, path, section: split(path, '/')[1] ?? '',
+				tabs: map(tabs, (t) => ({ path: t.path, title: t.title })),
+				version: info.version, description: info.description,
+				service: app_daemon(id, pkg, node.depends)
+			});
+		}
+	}
+	return sort(out, (a, b) => a.title < b.title ? -1 : a.title > b.title ? 1 : 0);
+}
+
 const methods = {
+	apps: { call: function(request) { return { apps: read_apps(), luci: !!access('/www/cgi-bin/luci') }; } },
 	version: { call: function(request) { return lumen_version(); } },
 	self_status: { call: function(request) { return self_status(); } },
 	self_run: { args: { action: 'action', purge: 'purge' }, call: function(request) { return self_run(request.args?.action, request.args?.purge); } },
