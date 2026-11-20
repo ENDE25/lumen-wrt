@@ -388,6 +388,7 @@ async function mockBase(obj: string, method: string, args: any = {}): Promise<an
   }
   if (k === 'luci.setPassword') return {};
   if (k === 'luci.getTimezones') return { 'Europe/Madrid': { tzstring: 'CET-1CEST,M3.5.0,M10.5.0/3' }, 'Europe/London': { tzstring: 'GMT0BST,M3.5.0/1,M10.5.0' }, UTC: { tzstring: 'UTC0' }, 'America/New_York': { tzstring: 'EST5EDT,M3.2.0,M11.1.0' } };
+  if (k === 'lumen.terminal') return { installed: true, configured: true, port: '7681', ssl: false, url_override: '', running: true };
   if (k === 'lumen.apps') return { luci: true, apps: MOCK_APPS };
   if (k === 'luci.wol.stat') return { etherwake: true, wakeonlan: false };
   if (k === 'luci.wol.exec') return { code: 0, stdout: '', stderr: '' };

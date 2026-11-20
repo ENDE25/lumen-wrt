@@ -394,7 +394,20 @@ function read_apps() {
 	return sort(out, (a, b) => a.title < b.title ? -1 : a.title > b.title ? 1 : 0);
 }
 
+// ---- Web terminal (ttyd). Read its config here: without luci-app-ttyd the session has no ACL for uci ttyd.
+function terminal_info() {
+	if (!access('/usr/bin/ttyd', 'x')) return { installed: false };
+	let c = cursor(), sec = null;
+	c.foreach('ttyd', 'ttyd', (s) => { if (!sec) sec = s; });
+	return {
+		installed: true, configured: !!sec,
+		port: sec?.port ?? '7681', ssl: sec?.ssl == '1', url_override: sec?.url_override ?? '',
+		running: system('/etc/init.d/ttyd running >/dev/null 2>&1') == 0
+	};
+}
+
 const methods = {
+	terminal: { call: function(request) { return terminal_info(); } },
 	apps: { call: function(request) { return { apps: read_apps(), luci: !!access('/www/cgi-bin/luci') }; } },
 	version: { call: function(request) { return lumen_version(); } },
 	self_status: { call: function(request) { return self_status(); } },
