@@ -191,7 +191,7 @@ in light and dark themes, on desktop and phone.
    sh /tmp/install.sh
    ```
 
-   <!-- install-sha256 -->The fingerprint of the current installer is `PENDING`.<!-- /install-sha256 -->
+   <!-- install-sha256 -->The fingerprint of the current installer is `41f22939edfcceefbb11ea76d714ea89e942ce10d9cbbd961c87866fd5b0bcb1`.<!-- /install-sha256 -->
    It only changes when the installer itself changes, and it is also published in `release/install.sh.sha256`.
    For a check that does not depend on this repository, compare it with the value from another source you trust
    (a copy you saved earlier, or someone who installed it before you).
