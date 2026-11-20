@@ -58,11 +58,15 @@ restart_services() { # $1 = also restart rpcd (1/0)
 	/etc/init.d/lumen-history restart >/dev/null 2>&1
 }
 
+# The panel answers on this router. The web server may be uhttpd or nginx (luci-nginx, pulled in by
+# some apps such as Speedify), and may redirect HTTP to HTTPS with a self-signed certificate.
+serves_panel() { uclient-fetch -q -T 5 --no-check-certificate -O - "$1" 2>/dev/null | grep -q '<title>Lumen'; }
+
 healthy() {
 	i=0
 	while [ $i -lt 15 ]; do
 		if ubus call lumen stats >/dev/null 2>&1 && [ -f /www/lumen/index.html ] &&
-			uclient-fetch -q -T 5 -O - http://127.0.0.1/lumen/ 2>/dev/null | grep -q '<title>Lumen'; then
+			{ serves_panel http://127.0.0.1/lumen/ || serves_panel https://127.0.0.1/lumen/; }; then
 			return 0
 		fi
 		i=$((i + 1)); sleep 1
@@ -103,7 +107,7 @@ do_rollback() {
 cmd_install() { # [--force] ; used for both install and update
 	force=0; [ "$1" = --force ] && force=1
 	[ "$(id -u)" = 0 ] || die "run as root"
-	command -v ubus >/dev/null && [ -x /etc/init.d/rpcd ] && [ -x /etc/init.d/uhttpd ] || die "this does not look like OpenWrt (ubus/rpcd/uhttpd missing)"
+	command -v ubus >/dev/null && [ -x /etc/init.d/rpcd ] && { [ -x /etc/init.d/uhttpd ] || [ -x /etc/init.d/nginx ]; } || die "this does not look like OpenWrt (ubus, rpcd or a web server missing)"
 	command -v usign >/dev/null || die "usign is required to verify the download (it ships with OpenWrt)"
 	BASE=$(base_url)
 	rm -rf "$TMP"; mkdir -p "$TMP/stage" || die "cannot create $TMP"
@@ -135,6 +139,16 @@ cmd_install() { # [--force] ; used for both install and update
 		case "$p" in *..*) die "bad path in release: $p" ;; esac
 	done < "$TMP/stage/MANIFEST"
 
+	# Hand over to the installer shipped in this (verified) release, so that fixes to the install steps
+	# themselves (the health check, for example) already apply to this update and not only to the next.
+	nm="$TMP/stage/root/usr/libexec/lumen/manage.sh"
+	if [ -z "$LUMEN_HANDOVER" ] && [ -f "$nm" ] && ! cmp -s "$nm" "$SELF" 2>/dev/null; then
+		cp "$nm" /tmp/lumen-manage-next.sh && chmod 755 /tmp/lumen-manage-next.sh || die "could not stage the new installer"
+		say "Continuing with the installer of Lumen $NEW ..."
+		if [ $force = 1 ]; then LUMEN_HANDOVER=1 exec sh /tmp/lumen-manage-next.sh install --force; fi
+		LUMEN_HANDOVER=1 exec sh /tmp/lumen-manage-next.sh install
+	fi
+
 	avail=$(df -k /usr 2>/dev/null | awk 'NR==2 {print $4}'); [ "${avail:-99999}" -gt 4096 ] || die "not enough free space on /usr (need ~4 MB)"
 
 	# --- back up what is installed now, then swap in the new files
@@ -164,7 +178,7 @@ cmd_install() { # [--force] ; used for both install and update
 	[ -f "$STATE/release-key.pub" ] || cp "$KEY" "$STATE/release-key.pub"
 	printf '{"version":"%s","installed":%s,"base":"%s"}\n' "$NEW" "$(date +%s)" "$BASE" > "$STATE/version.json"
 
-	rm -rf /www/lumen.old "$TMP"
+	rm -rf /www/lumen.old "$TMP" /tmp/lumen-manage-next.sh
 	ip=$(ubus call network.interface.lan status 2>/dev/null | jsonfilter -e '@["ipv4-address"][0].address' 2>/dev/null)
 	say "Lumen $NEW is installed.  Open http://${ip:-<router-ip>}/lumen/"
 	[ $rp = 1 ] && say "(rpcd was restarted: sign in again if the page was open.)"
