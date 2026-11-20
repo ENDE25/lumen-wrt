@@ -25,11 +25,11 @@ export const luciUrl = (path: string) => `/cgi-bin/luci/${path}`;
 
 /** A glyph for the cards; anything unknown gets the package icon. */
 const ICONS: Record<string, string> = {
-  wol: 'power', ttyd: 'console', statistics: 'stats', ddns: 'globe', upnp: 'network',
+  wol: 'power', ttyd: 'terminal', statistics: 'stats', ddns: 'globe', upnp: 'network',
   attendedsysupgrade: 'package', adblock: 'shield', 'adblock-fast': 'shield', banip: 'shield',
   wireguard: 'shield', openvpn: 'shield', sqm: 'stats', nlbwmon: 'stats', vnstat2: 'stats',
   'https-dns-proxy': 'dns', dnscrypt: 'dns', samba4: 'server', ksmbd: 'server', minidlna: 'tv',
-  mwan3: 'network', 'travelmate': 'wifi', commands: 'console', acme: 'shield',
+  mwan3: 'network', 'travelmate': 'wifi', commands: 'terminal', acme: 'shield',
 };
 export const appIcon = (a: App) => ICONS[a.id] ?? ICONS[a.pkg.replace(/^luci-app-/, '')] ?? 'package';
 

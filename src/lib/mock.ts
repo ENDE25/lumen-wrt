@@ -81,6 +81,7 @@ const WIRED: Record<string, string> = { raspberrypi: 'lan1', 'NAS-Synology': 'la
 const FILES: Record<string, string> = { '/etc/dropbear/authorized_keys': 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl marta@laptop\n', '/etc/crontabs/root': '# Reboot every Sunday at 4:30\n30 4 * * 0 /sbin/reboot\n' };
 const INIT: Record<string, { start: number; enabled: boolean; running: boolean }> = Object.fromEntries(['boot:10', 'sysinit:11', 'network:20', 'firewall:19', 'dnsmasq:19', 'odhcpd:50', 'dropbear:19', 'uhttpd:50', 'rpcd:12', 'cron:50', 'sysntpd:99', 'lumen-history:95', 'done:95', 'adblock:30', 'ddns:95', 'ttyd:99', 'miniupnpd:94'].map((x) => { const [n, o] = x.split(':'); return [n, { start: +o, enabled: true, running: !['sysntpd', 'miniupnpd'].includes(n) }]; }));
 const UCI: Record<string, Record<string, any>> = {
+  ttyd: { cfg014b2c: { '.name': 'cfg014b2c', '.type': 'ttyd', '.anonymous': true, interface: '@lan', command: '/bin/login' } },
   system: {
     cfg01e48a: { '.name': 'cfg01e48a', '.type': 'system', '.anonymous': true, hostname: 'lumen-demo', log_size: '128', zonename: 'Europe/Madrid', timezone: 'CET-1CEST,M3.5.0,M10.5.0/3' },
     cfg02led: { '.name': 'cfg02led', '.type': 'led', '.anonymous': true, name: 'WAN activity', sysfs: 'blue:wan', trigger: 'netdev', dev: 'eth0', mode: 'link tx rx' },

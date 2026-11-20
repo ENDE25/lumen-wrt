@@ -23,6 +23,7 @@
       { id: 'apps', icon: 'apps', label: 'Apps' },
       { id: 'updates', icon: 'package', label: 'Updates' },
       { id: 'services', icon: 'services', label: 'Services' },
+      { id: 'terminal', icon: 'terminal', label: 'Terminal' },
       { id: 'backup', icon: 'down', label: 'Backup' },
       { id: 'settings', icon: 'settings', label: 'Settings' },
     ],
