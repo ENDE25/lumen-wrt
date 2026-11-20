@@ -80,8 +80,8 @@
 
 <style>
   .wrap { position: relative; padding: 0; overflow: hidden; }
-  /* fills the window below the page head (html is zoomed to 88%, hence the division) */
-  iframe { display: block; width: 100%; height: calc(100vh / .88 - 200px); min-height: 480px; border: 0; background: var(--bg); }
+  /* fills the window below the page head (html is zoomed by --zoom, hence the division) */
+  iframe { display: block; width: 100%; height: calc(100vh / var(--zoom) - 200px); min-height: 480px; border: 0; background: var(--bg); }
   iframe.hidden { display: none; }
   .spin { position: absolute; inset: 0; display: grid; place-items: center; background: var(--surface); }
   .login { display: grid; gap: 12px; justify-items: center; text-align: center; max-width: 380px; margin: 0 auto; padding: 56px 20px; color: var(--text); }

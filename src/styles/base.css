@@ -1,7 +1,10 @@
 *, *::before, *::after { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; }
-/* Default density: slightly smaller than 100% so more fits on screen. */
-html { zoom: 0.88; }
+/* Base UI scale: the panel looks oversized at 100%. Also used to size full-height frames.
+   Phones keep the previous, larger scale so text stays readable. */
+:root { --zoom: 0.7; }
+@media (max-width: 760px) { :root { --zoom: 0.88; } }
+html { zoom: var(--zoom); }
 body {
   background: var(--bg); color: var(--text); font: 14px/1.45 var(--font);
   -webkit-font-smoothing: antialiased;

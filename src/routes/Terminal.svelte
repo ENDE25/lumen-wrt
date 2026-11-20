@@ -136,8 +136,8 @@
   .confirm .row { justify-content: flex-start; }
   .risk { text-align: left; max-width: 560px; display: grid; gap: 10px; padding: 16px 18px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); }
   .risk ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; color: var(--text-2); }
-  /* fills the window under the page head (html is zoomed to 88%, hence the division) */
-  .term { display: block; width: 100%; height: calc(100vh / .88 - 150px); min-height: 420px; border: 1px solid var(--border); border-radius: var(--radius); background: #2b2b2b; }
+  /* fills the window under the page head (html is zoomed by --zoom, hence the division) */
+  .term { display: block; width: 100%; height: calc(100vh / var(--zoom) - 150px); min-height: 420px; border: 1px solid var(--border); border-radius: var(--radius); background: #2b2b2b; }
   .mock { padding: 12px 14px; font: 13px ui-monospace, monospace; color: #e8e8e8; }
   .mock i { display: inline-block; width: 8px; height: 15px; background: #e8e8e8; vertical-align: text-bottom; animation: blink 1s steps(1) infinite; }
   @keyframes blink { 50% { opacity: 0; } }
