@@ -1,5 +1,7 @@
 // Single shared poller: one batched request every INTERVAL ms feeds every page.
 import { getSnapshot, type Snapshot } from './api';
+import { call } from './ubus';
+import { wansOf, wanZoneNets, type Wan } from './wan';
 import type { NetDevice, NetInterface, RatePoint, Stats, SystemInfo } from './types';
 
 const INTERVAL = 2000;
@@ -16,6 +18,8 @@ class Live {
   history = $state<Record<string, RatePoint[]>>({});
   error = $state<string | null>(null);
   loaded = $state(false);
+  /** networks of the firewall's WAN zone(s), read once: they let a WAN that is down still be listed */
+  wanNets = $state<string[] | null>(null);
 
   #timer: ReturnType<typeof setTimeout> | null = null;
   #prev: Record<string, { t: number; rx: number; tx: number }> = {};
@@ -25,6 +29,11 @@ class Live {
   /** Page components call start() on mount and the returned fn on destroy. */
   start(): () => void {
     if (this.#users++ === 0) this.#loop();
+    if (this.wanNets === null) {
+      this.wanNets = [];
+      call<{ values: Record<string, Record<string, unknown>> }>('uci', 'get', { config: 'firewall' })
+        .then((r) => (this.wanNets = wanZoneNets(r.values ?? {}))).catch(() => {});
+    }
     return () => { if (--this.#users === 0 && this.#timer) { clearTimeout(this.#timer); this.#timer = null; } };
   }
 
@@ -71,10 +80,12 @@ class Live {
     this.stats = st;
   }
 
-  /** Interface carrying the default route = "Internet". Falls back to first up interface. */
+  /** Every Internet link, preferred first, with its role (see wan.ts). */
+  get wans(): Wan[] { return wansOf(this.interfaces, this.wanNets); }
+
+  /** The link carrying traffic now = "Internet". Falls back to the first interface that is up. */
   get wan(): NetInterface | undefined {
-    return this.interfaces.find((i) => i.up && i.route?.some((r) => r.target === '0.0.0.0' && r.mask === 0))
-      ?? this.interfaces.find((i) => i.up && i.interface !== 'loopback');
+    return this.wans.find((w) => w.up)?.iface ?? this.interfaces.find((i) => i.up && i.interface !== 'loopback');
   }
 
   rate(dev?: string): RatePoint | undefined {

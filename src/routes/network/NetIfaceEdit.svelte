@@ -80,7 +80,7 @@
     {#if cfg.canVlan}
       <label><span>VLAN ID <small class="faint">optional · some providers need one on the internet port</small></span><input class="input" style="max-width:120px" inputmode="numeric" bind:value={f.vlan} placeholder="none" /></label>
     {/if}
-    <label><span>Metric <small class="faint">optional · lower wins when several uplinks exist</small></span><input class="input" style="max-width:120px" bind:value={f.metric} /></label>
+    <label><span>Priority (metric) <small class="faint">optional · with several Internet links, the lowest number is used first and the others are backups</small></span><input class="input" style="max-width:120px" bind:value={f.metric} /></label>
 
     {#if err}<small class="bad">{err}</small>{/if}
     {#if moving}

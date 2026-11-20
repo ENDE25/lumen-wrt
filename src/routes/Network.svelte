@@ -9,6 +9,7 @@
   import NetIfaceNew from './network/NetIfaceNew.svelte';
   import NetBridges from './network/NetBridges.svelte';
   import { isEditable } from '../lib/netconf';
+  import { ROLE_LABEL } from '../lib/wan';
   import { bps, bytes, cidr, duration } from '../lib/format';
   import type { NetDevice, NetInterface } from '../lib/types';
 
@@ -22,6 +23,8 @@
   const devs = $derived(Object.values(live.devices).sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true })));
   const ifs = $derived(live.interfaces.filter((i) => i.interface !== 'loopback'));
   const cur = $derived(selDev ? live.devices[selDev.name] ?? selDev : null);
+  // with several Internet links, say which one is preferred and which ones wait as backups
+  const roles = $derived(live.wans.length > 1 ? new Map(live.wans.map((w) => [w.name, w])) : null);
   const curIf = $derived(selIf ? live.interfaces.find((i) => i.interface === selIf!.interface) ?? selIf : null);
 </script>
 
@@ -42,13 +45,17 @@
   <div class="card tw">
     <div class="card-title" style="padding:20px 20px 0"><h2>Interfaces</h2><button class="btn" onclick={() => (adding = true)}>Add interface</button></div>
     <table class="tbl">
-      <thead><tr><th>Name</th><th>Status</th><th>Protocol</th><th>Device</th><th>IPv4</th><th>Uptime</th><th>↓ / ↑</th></tr></thead>
+      <thead><tr><th>Name</th><th>Status</th>{#if roles}<th>Internet</th>{/if}<th>Protocol</th><th>Device</th><th>IPv4</th><th>Uptime</th><th>↓ / ↑</th></tr></thead>
       <tbody>
         {#each ifs as i (i.interface)}
           {@const r = live.rate(i.l3_device ?? i.device)}
           <tr class="click" tabindex="0" onclick={() => (selIf = i)} onkeydown={(e) => e.key === 'Enter' && (selIf = i)}>
             <td><b>{i.interface}</b></td>
             <td><span class="pill"><i class="dot" class:ok={i.up} class:bad={!i.up}></i>{i.up ? 'Up' : 'Down'}</span></td>
+            {#if roles}
+              {@const w = roles.get(i.interface)}
+              <td>{#if w}<span class="role {w.role}">{ROLE_LABEL[w.role]}</span> <small class="faint">metric {w.metric}</small>{:else}<span class="faint">—</span>{/if}</td>
+            {/if}
             <td>{i.proto}</td>
             <td class="mono">{i.l3_device ?? i.device ?? '—'}</td>
             <td class="num">{i['ipv4-address']?.[0] ? cidr(i['ipv4-address'][0]) : '—'}</td>
@@ -117,4 +124,8 @@
 
 <style>
   .tw { padding: 0; overflow-x: auto; }
+  .role { font-size: 11.5px; padding: 1px 8px; border-radius: 999px; background: var(--surface-2); color: var(--text-2); white-space: nowrap; }
+  .role.primary { background: color-mix(in srgb, var(--ok) 15%, transparent); color: var(--ok); }
+  .role.failover { background: color-mix(in srgb, var(--warn) 18%, transparent); color: var(--warn); }
+  .role.down { background: color-mix(in srgb, var(--bad) 14%, transparent); color: var(--bad); }
 </style>

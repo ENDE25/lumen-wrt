@@ -464,8 +464,36 @@ function wispPatch(k: string, args: any, r: any): any {
 }
 
 export async function mockCall(obj: string, method: string, args: any = {}): Promise<any> {
-  const wisp = isWisp();
+  const wisp = isWisp(), multi = isMultiWan();
   if (wisp) initWisp();
+  if (multi) initMultiWan();
   const r = await mockBase(obj, method, args);
-  return wisp ? wispPatch(`${obj}.${method}`, args, r) : r;
+  return wisp ? wispPatch(`${obj}.${method}`, args, r) : multi ? multiWanPatch(`${obj}.${method}`, r) : r;
+}
+
+// ---- Scenario "multiwan" (?scenario=multiwan): two Internet links. Fibre on eth0 is the main one (metric 10),
+// a second ISP on eth1 is the backup (metric 20). Both are up and both have a default route.
+const isMultiWan = () => typeof location !== 'undefined' && new URLSearchParams(location.search).get('scenario') === 'multiwan';
+let multiReady = false;
+function initMultiWan() {
+  if (multiReady) return; multiReady = true;
+  UCI.network.wan.metric = '10';
+  UCI.network.wanb = { '.name': 'wanb', '.type': 'interface', device: 'eth1', proto: 'dhcp', metric: '20' };
+  UCI.firewall.cfg0wan.network = ['wan', 'wan6', 'wanb'];
+}
+// &fail=1: the fibre is down and the backup carries the traffic.
+const multiFail = () => new URLSearchParams(location.search).get('fail') === '1';
+function multiWanPatch(k: string, r: any): any {
+  if (k === 'log.read' && multiFail()) {
+    const t = Date.now() - (2 * 3600 + 17 * 60) * 1000;   // logd times are in ms
+    return { log: [...(r.log ?? []), { time: t, msg: "netifd: Interface 'wan' is now down" }].sort((a: any, b: any) => a.time - b.time) };
+  }
+  if (k !== 'network.interface.dump') return r;
+  const wan = r.interface.find((i: any) => i.interface === 'wan');
+  if (wan) wan.metric = 10;
+  if (wan && multiFail()) { wan.up = false; delete wan.route; delete wan['ipv4-address']; delete wan.uptime; }
+  return { interface: [...r.interface, {
+    interface: 'wanb', up: true, proto: 'dhcp', metric: 20, uptime: 5400 + up(), l3_device: 'eth1', device: 'eth1',
+    'ipv4-address': [{ address: '100.71.3.18', mask: 22 }], route: [{ target: '0.0.0.0', mask: 0, nexthop: '100.71.0.1' }], 'dns-server': ['80.58.61.250'],
+  }] };
 }

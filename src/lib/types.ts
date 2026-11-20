@@ -25,6 +25,7 @@ export interface NetInterface {
   up: boolean;
   proto: string;
   uptime?: number;
+  metric?: number;      // route metric: the lowest one among the links that are up carries the traffic
   l3_device?: string;
   device?: string;
   'ipv4-address'?: IfaceAddr[];

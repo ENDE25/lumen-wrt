@@ -1,3 +1,4 @@
+import { hasDefaultRoute } from './wan';
 import { batch, call } from './ubus';
 import { loadVendors, lookup } from './vendor';
 import { isKind } from './kinds';
@@ -148,22 +149,29 @@ function upstream(wifi: WifiIface[], ifs: NetInterface[], bridges: Record<string
   const staMacs = new Set<string>();
   const devs = new Set<string>();
   for (const w of wifi) if (w.role === 'sta') { devs.add(w.ifname); w.clients.forEach((c) => staMacs.add(c.mac)); }
-  const wan = ifs.find((i) => i.up && i.route?.some((r) => r.target === '0.0.0.0' && r.mask === 0));
-  const wanDev = wan?.l3_device ?? wan?.device;
-  // A router whose uplink is a bridge (access-point mode) has its own clients there: skip the device and subnet rules.
-  const wanIsBridge = !!wanDev && wanDev in bridges;
-  if (wanDev && !wanIsBridge) devs.add(wanDev);
-  const net = wan?.['ipv4-address']?.[0];
-  const lanNets = ifs.filter((i) => i !== wan).flatMap((i) => i['ipv4-address'] ?? []);
-  const subnet = net && !wanIsBridge && !lanNets.some((l) => sameNet(net.address, l.address, Math.min(net.mask, l.mask))) ? net : undefined;
-  const gw = wan?.route?.find((r) => r.target === '0.0.0.0' && r.mask === 0)?.nexthop;
+  // every Internet link that is up (several when the router has backups): hosts behind any of them are not ours
+  const ups = ifs.filter((i) => i.up && hasDefaultRoute(i));
+  const lanNets = ifs.filter((i) => !ups.includes(i)).flatMap((i) => i['ipv4-address'] ?? []);
+  const gws = new Set<string>(), subnets: { address: string; mask: number }[] = [];
+  let anyBridge = false;
+  for (const wan of ups) {
+    const wanDev = wan.l3_device ?? wan.device;
+    // A router whose uplink is a bridge (access-point mode) has its own clients there: skip the device and subnet rules.
+    const wanIsBridge = !!wanDev && wanDev in bridges;
+    anyBridge ||= wanIsBridge;
+    if (wanDev && !wanIsBridge) devs.add(wanDev);
+    const net = wan['ipv4-address']?.[0];
+    if (net && !wanIsBridge && !lanNets.some((l) => sameNet(net.address, l.address, Math.min(net.mask, l.mask)))) subnets.push(net);
+    const gw = wan.route?.find((r) => r.target === '0.0.0.0' && r.mask === 0)?.nexthop;
+    if (gw && !wanIsBridge) gws.add(gw);
+  }
   return {
     isUpstream(mac: string, ips: string[], neighDevice?: string): boolean {
       if (staMacs.has(mac)) return true;
       if (neighDevice && devs.has(neighDevice)) return true;
-      if (wanIsBridge) return false;
-      if (gw && ips.includes(gw)) return true;
-      return !!subnet && ips.some((ip) => sameNet(ip, subnet.address, subnet.mask));
+      if (ips.some((ip) => gws.has(ip))) return true;
+      if (anyBridge && !subnets.length) return false;
+      return subnets.some((n) => ips.some((ip) => sameNet(ip, n.address, n.mask)));
     },
   };
 }

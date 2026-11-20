@@ -8,6 +8,7 @@
   import { live } from '../lib/live.svelte';
   import { getBoard, getNetworkMap } from '../lib/api';
   import { buildGraph, type GNode } from '../lib/netmap';
+  import { ROLE_LABEL } from '../lib/wan';
   import { bytes, cidr, duration } from '../lib/format';
   import type { Board, NetworkMap } from '../lib/types';
 
@@ -28,7 +29,7 @@
     return () => { stop(); clearInterval(t); };
   });
 
-  const g = $derived(buildGraph({ board, interfaces: live.interfaces, devices: live.devices, ...map, clients: online }));
+  const g = $derived(buildGraph({ board, interfaces: live.interfaces, devices: live.devices, ...map, clients: online, wans: live.wans }));
   const scale = $derived(Math.min(1, boxW / g.width));
   const byId = $derived(new Map(g.nodes.map((n) => [n.id, n])));
   // Where a link leaves a node: the Internet globe has no box, so it starts next to the globe itself.
@@ -72,7 +73,7 @@
             {#each g.links as l (l.id)}
               {@const a = byId.get(l.from)} {@const b = byId.get(l.to)}
               {#if a && b}
-                <path d={path(a, b, l.curve)} class="link" class:wifi={l.wifi} class:down={!l.up} class:hub={l.from === 'router' || l.to === 'router'} />
+                <path d={path(a, b, l.curve)} class="link" class:wifi={l.wifi} class:down={!l.up} class:standby={l.standby} class:hub={l.from === 'router' || l.to === 'router'} />
                 {#if l.label}<text x={(outPt(a).x + b.x) / 2} y={outPt(a).y - 8} text-anchor="middle">{l.label}</text>{/if}
               {/if}
             {/each}
@@ -130,7 +131,11 @@
     {:else if cur.kind === 'internet'}
       {@const w = cur.iface}
       {#if w}
-        <div class="stat-row"><span>Interface</span><b>{w.interface} · {w.l3_device}</b></div>
+        <div class="stat-row"><span>Interface</span><b>{w.interface} · {w.l3_device ?? w.device ?? '—'}</b></div>
+        {#if cur.wan && live.wans.length > 1}
+          <div class="stat-row"><span>Role</span><b>{ROLE_LABEL[cur.wan.role]}</b></div>
+          <div class="stat-row"><span>Priority (metric)</span><b class="num">{cur.wan.metric}</b></div>
+        {/if}
         {#if cur.wifi}
           {@const u = cur.wifi}
           <div class="stat-row"><span>Connected through</span><b>Wi-Fi · {u.ssid}</b></div>
@@ -159,6 +164,7 @@
   .link { fill: none; stroke: var(--text-3); stroke-opacity: .55; stroke-width: 1.6; stroke-linejoin: round; }
   .link.wifi { stroke: var(--accent); stroke-opacity: .7; stroke-dasharray: 5 5; animation: flow 1.2s linear infinite; }
   .link.down { stroke-opacity: .2; animation: none; }
+  .link.standby { stroke-dasharray: 2 6; stroke-opacity: .45; animation: none; }
   svg text { font-size: 11px; fill: var(--text-3); }
   @keyframes flow { to { stroke-dashoffset: -10; } }
 
@@ -181,6 +187,8 @@
   .router .txt b { font-size: 15px; } .router .txt small { color: rgba(255, 255, 255, .82); }
   .link.hub { stroke: var(--accent); stroke-opacity: .55; stroke-width: 2; }
   .link.hub.wifi { stroke-opacity: .75; }
+  .link.hub.down { stroke-opacity: .18; }
+  .link.hub.standby { stroke-opacity: .45; }
   .ssid .ico { color: var(--accent); background: var(--accent-soft); }
   .txt { display: grid; min-width: 0; flex: 1; line-height: 1.25; }
   .txt b { font-weight: 600; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

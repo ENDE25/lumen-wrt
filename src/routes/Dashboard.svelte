@@ -7,7 +7,8 @@
   import Glyph from '../components/Glyph.svelte';
   import LineChart from '../components/LineChart.svelte';
   import { live } from '../lib/live.svelte';
-  import { getBoard, getClientTraffic, getClients, getServices, isFailed } from '../lib/api';
+  import { getBoard, getClientTraffic, getClients, getLog, getServices, isFailed } from '../lib/api';
+  import { ROLE_LABEL } from '../lib/wan';
   import { clientRows } from '../lib/clientstats';
   import { memory, maxTemp, tempTone } from '../lib/derive';
   import { bps, bytes, duration, load, pct, cidr } from '../lib/format';
@@ -32,6 +33,21 @@
   });
 
   const wan = $derived(live.wan);
+  const wans = $derived(live.wans);
+  const inUse = $derived(wans.find((w) => w.up));
+  const failover = $derived(wans.find((w) => w.role === 'failover'));
+  const lost = $derived(failover ? wans.find((w) => w.role === 'down') : undefined);
+  // when the preferred link went down, from netifd's line in the system log
+  let lostAt = $state<number | null>(null);
+  $effect(() => {
+    const name = lost?.name;
+    if (!name) { lostAt = null; return; }
+    getLog().then((lines) => {
+      const hit = lines.find((l) => l.msg.includes(`Interface '${name}' is now down`));   // newest first
+      lostAt = hit ? hit.time : null;
+    }).catch(() => {});
+  });
+  const clock = (t: number) => new Date(t).toLocaleString(undefined, { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' });
   const dev = $derived(picked || wan?.l3_device || Object.keys(live.devices)[0] || '');
   const now = $derived(live.rate(dev));
   const series = $derived(live.history[dev] ?? []);
@@ -110,8 +126,28 @@
 
       <div class="row3">
         <div class="card">
-          <div class="card-title"><h2>Internet</h2><span class="pill"><i class="dot" class:ok={!!wan} class:bad={!wan}></i>{wan ? 'Connected' : 'Offline'}</span></div>
-          {#if wan}
+          <div class="card-title"><h2>Internet</h2><span class="pill"><i class="dot" class:ok={!!inUse && !failover} class:warn={!!failover} class:bad={!wan}></i>{failover ? 'On backup' : wan ? 'Connected' : 'Offline'}</span></div>
+          {#if wans.length > 1}
+            {#if failover && lost}
+              <p class="failnote"><Icon name="alert" size={14} /><span><b>{lost.name}</b> is down{lostAt ? ` since ${clock(lostAt)}` : ''}. Traffic is going through <b>{failover.name}</b>.</span></p>
+            {/if}
+            <ul class="wans">
+              {#each wans as w (w.name)}
+                <li class:off={w.role === 'down'}>
+                  <div class="wl">
+                    <i class="dot" class:ok={w.role === 'primary'} class:warn={w.role === 'failover'} class:bad={w.role === 'down'}></i>
+                    <b>{w.name}</b><span class="faint mono">{w.dev ?? ''}</span>
+                    <span class="role {w.role}">{ROLE_LABEL[w.role]}</span>
+                  </div>
+                  <div class="wd">
+                    <span class="num">{w.iface['ipv4-address']?.[0] ? cidr(w.iface['ipv4-address'][0]) : '—'}</span>
+                    <span class="faint">{[w.iface.proto.toUpperCase(), w.gateway ? `via ${w.gateway}` : '', w.up && w.iface.uptime ? duration(w.iface.uptime) : ''].filter(Boolean).join(' · ')}</span>
+                  </div>
+                </li>
+              {/each}
+            </ul>
+            {#if inUse}<div class="stat-row"><span>DNS</span><b class="num">{inUse.iface['dns-server']?.join(', ') ?? '—'}</b></div>{/if}
+          {:else if wan}
             <div class="stat-row"><span>Interface</span><b>{wan.interface} · {wan.l3_device}</b></div>
             <div class="stat-row"><span>Protocol</span><b>{wan.proto.toUpperCase()}</b></div>
             <div class="stat-row"><span>IP</span><b class="num">{wan['ipv4-address']?.[0] ? cidr(wan['ipv4-address'][0]) : '—'}</b></div>
@@ -272,4 +308,17 @@
   @media (max-width: 1180px) { .row3 { grid-template-columns: 1fr 1fr; } }
   @media (max-width: 960px) { .layout { grid-template-columns: 1fr; } }
   @media (max-width: 640px) { .row3 { grid-template-columns: 1fr; } }
+  .failnote { display: flex; gap: 8px; align-items: flex-start; padding: 8px 10px; margin: -4px 0 10px; border-radius: 8px; background: color-mix(in srgb, var(--warn) 14%, transparent); font-size: 12.5px; }
+  .failnote :global(svg) { flex: none; margin-top: 1px; color: var(--warn); }
+  .wans { list-style: none; margin: 0 0 4px; padding: 0; }
+  .wans li { padding: 9px 0; border-bottom: 1px solid var(--border); display: grid; gap: 3px; }
+  .wans li.off { opacity: .7; }
+  .wl, .wd { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .wd { justify-content: space-between; font-size: 12.5px; padding-left: 16px; }
+  .wd .faint { text-align: right; }
+  .role { margin-left: auto; font-size: 11.5px; padding: 1px 8px; border-radius: 999px; background: var(--surface-2); color: var(--text-2); white-space: nowrap; }
+  .role.primary { background: color-mix(in srgb, var(--ok) 15%, transparent); color: var(--ok); }
+  .role.failover { background: color-mix(in srgb, var(--warn) 18%, transparent); color: var(--warn); }
+  .role.down { background: color-mix(in srgb, var(--bad) 14%, transparent); color: var(--bad); }
+  .mono { font-family: var(--mono, ui-monospace, monospace); font-size: 12px; }
 </style>
