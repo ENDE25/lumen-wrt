@@ -15,19 +15,27 @@ LUMEN_DEFAULT_BASE='__LUMEN_BASE__'
 # -------------------------------------------------------------------------------------------------
 
 STATE=/usr/share/lumen
-TMP=/tmp/lumen-install
+TMP=                             # private work directory, created by new_tmp
 JOBDIR=/tmp/lumen-self           # outside /tmp/lumen so it survives an uninstall
 SELF="$0"
 
 say() { printf '%s\n' "$*"; }
 die() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
 
+# A fresh private directory for downloads and unpacking (never a fixed /tmp path).
+new_tmp() {
+	TMP=$(mktemp -d /tmp/lumen-install.XXXXXX) || die "cannot create a temporary directory"
+	trap cleanup EXIT   # set here too: `job` runs commands in a subshell, which does not inherit traps
+}
+cleanup() { [ -n "${LUMEN_RUN:-}" ] && rm -f "$LUMEN_RUN"; [ -n "${TMP:-}" ] && rm -rf "$TMP"; }
+
 # When started from a file, run from a private copy: the update/uninstall replaces or deletes this very script.
 if [ "${LUMEN_REEXEC:-}" != 1 ] && [ -f "$0" ]; then
-	RUN="/tmp/lumen-manage.$$"
-	cp "$0" "$RUN" 2>/dev/null && LUMEN_REEXEC=1 LUMEN_RUN="$RUN" exec sh "$RUN" "$@"
+	# mktemp: a fresh file only root can have created (a fixed /tmp name could be a planted symlink)
+	RUN=$(mktemp /tmp/lumen-manage.XXXXXX 2>/dev/null) && cp "$0" "$RUN" 2>/dev/null && LUMEN_REEXEC=1 LUMEN_RUN="$RUN" exec sh "$RUN" "$@"
 fi
-[ -n "${LUMEN_RUN:-}" ] && trap 'rm -f "$LUMEN_RUN"' EXIT
+# on exit (also after an error) remove the private copy and the work directory
+trap cleanup EXIT
 
 base_url() {
 	if [ -n "${LUMEN_BASE:-}" ]; then echo "$LUMEN_BASE"; return; fi
@@ -75,8 +83,9 @@ healthy() {
 
 # ---------------------------------------------------------------------------------------------------
 cmd_check() {
-	mkdir -p "$TMP" && fetch "$(base_url)/latest.json" "$TMP/latest.json" || die "could not download $(base_url)/latest.json (no Internet or DNS?)"
-	latest=$(json "$TMP/latest.json" version); cur=$(installed_version)
+	new_tmp
+	fetch "$(base_url)/latest.json" "$TMP/latest.json" || { rm -rf "$TMP"; die "could not download $(base_url)/latest.json (no Internet or DNS?)"; }
+	latest=$(json "$TMP/latest.json" version); cur=$(installed_version); rm -rf "$TMP"
 	say "installed: ${cur:-none}"; say "latest:    $latest"
 	if [ -z "$cur" ] || ver_gt "$latest" "$cur"; then say "an update is available"; else say "up to date"; fi
 }
@@ -109,7 +118,9 @@ cmd_install() { # [--force] ; used for both install and update
 	command -v ubus >/dev/null && [ -x /etc/init.d/rpcd ] && { [ -x /etc/init.d/uhttpd ] || [ -x /etc/init.d/nginx ]; } || die "this does not look like OpenWrt (ubus, rpcd or a web server missing)"
 	command -v usign >/dev/null || die "usign is required to verify the download (it ships with OpenWrt)"
 	BASE=$(base_url)
-	rm -rf "$TMP"; mkdir -p "$TMP/stage" || die "cannot create $TMP"
+	new_tmp; mkdir "$TMP/stage" || die "cannot create $TMP/stage"
+	# handed over by an older installer: remove its work directory (only ever one of ours)
+	case "${LUMEN_HANDOVER:-}" in /tmp/lumen-install.??????) rm -rf "$LUMEN_HANDOVER" ;; esac
 
 	say "Looking for the latest release at $BASE ..."
 	fetch "$BASE/latest.json" "$TMP/latest.json" || die "could not download $BASE/latest.json (no Internet or DNS?)"
@@ -142,10 +153,10 @@ cmd_install() { # [--force] ; used for both install and update
 	# themselves (the health check, for example) already apply to this update and not only to the next.
 	nm="$TMP/stage/root/usr/libexec/lumen/manage.sh"
 	if [ -z "$LUMEN_HANDOVER" ] && [ -f "$nm" ] && ! cmp -s "$nm" "$SELF" 2>/dev/null; then
-		cp "$nm" /tmp/lumen-manage-next.sh && chmod 755 /tmp/lumen-manage-next.sh || die "could not stage the new installer"
+		cp "$nm" "$TMP/manage-next.sh" || die "could not stage the new installer"
 		say "Continuing with the installer of Lumen $NEW ..."
-		if [ $force = 1 ]; then LUMEN_HANDOVER=1 exec sh /tmp/lumen-manage-next.sh install --force; fi
-		LUMEN_HANDOVER=1 exec sh /tmp/lumen-manage-next.sh install
+		if [ $force = 1 ]; then LUMEN_HANDOVER="$TMP" LUMEN_REEXEC=1 exec sh "$TMP/manage-next.sh" install --force; fi
+		LUMEN_HANDOVER="$TMP" LUMEN_REEXEC=1 exec sh "$TMP/manage-next.sh" install
 	fi
 
 	avail=$(df -k /usr 2>/dev/null | awk 'NR==2 {print $4}'); [ "${avail:-99999}" -gt 4096 ] || die "not enough free space on /usr (need ~4 MB)"
@@ -177,7 +188,7 @@ cmd_install() { # [--force] ; used for both install and update
 	[ -f "$STATE/release-key.pub" ] || cp "$KEY" "$STATE/release-key.pub"
 	printf '{"version":"%s","installed":%s,"base":"%s"}\n' "$NEW" "$(date +%s)" "$BASE" > "$STATE/version.json"
 
-	rm -rf /www/lumen.old "$TMP" /tmp/lumen-manage-next.sh
+	rm -rf /www/lumen.old "$TMP" /tmp/lumen-manage-next.sh  # (the last one: left by 0.20.1)
 	ip=$(ubus call network.interface.lan status 2>/dev/null | jsonfilter -e '@["ipv4-address"][0].address' 2>/dev/null)
 	say "Lumen $NEW is installed.  Open http://${ip:-<router-ip>}/lumen/"
 	[ $rp = 1 ] && say "(rpcd was restarted: sign in again if the page was open.)"

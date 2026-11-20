@@ -183,6 +183,19 @@ in light and dark themes, on desktop and phone.
    installs, starts the collector, checks that everything came up, and prints the address. If any step fails it stops
    or rolls back without leaving a half-installed panel.
 
+   **Prefer to check the installer before running it?** Download it, compare its fingerprint and only then run it:
+
+   ```sh
+   wget -qO /tmp/install.sh https://raw.githubusercontent.com/ENDE25/lumen-wrt/main/release/install.sh
+   sha256sum /tmp/install.sh
+   sh /tmp/install.sh
+   ```
+
+   <!-- install-sha256 -->The fingerprint of the current installer is `PENDING`.<!-- /install-sha256 -->
+   It only changes when the installer itself changes, and it is also published in `release/install.sh.sha256`.
+   For a check that does not depend on this repository, compare it with the value from another source you trust
+   (a copy you saved earlier, or someone who installed it before you).
+
 3. Open `http://<router-ip>/lumen/` and sign in with the router's **root** user and password.
 
 **What gets installed** (recorded in `/usr/share/lumen/files.list`; nothing else is ever written):
@@ -217,6 +230,17 @@ in light and dark themes, on desktop and phone.
 This removes the panel, the rpcd plugin, the collector service, its nftables table and the manager itself. By default
 your settings (device names and types, collector options) stay in `/etc/config/lumen` and come back if you reinstall.
 LuCI and the rest of OpenWrt are never touched.
+
+### Security
+
+- Lumen uses the router's own login and permission system (rpcd sessions and ACLs), the same one LuCI uses. It
+  opens no new ports and adds nothing that works without signing in.
+- **No shell is installed by default.** The web terminal (`ttyd`) is optional: the Terminal page explains what it
+  opens (a root login prompt on port 7681 of your local network, over plain HTTP unless you enable SSL) and installs
+  it only if you confirm. It can be removed from the same page; uninstalling Lumen does not remove it.
+- Updates are only installed when you press *Update*, and only if signed with the release key pinned at install time.
+- Lumen refuses to run inside another site's frame, and the installer only uses private temporary files.
+- Like LuCI, the panel is served over plain HTTP by default: on an untrusted network, enable HTTPS on the router.
 
 ### Troubleshooting
 

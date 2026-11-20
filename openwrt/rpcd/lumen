@@ -402,6 +402,7 @@ function terminal_info() {
 	return {
 		installed: true, configured: !!sec,
 		port: sec?.port ?? '7681', ssl: sec?.ssl == '1', url_override: sec?.url_override ?? '',
+		interface: sec?.interface ?? '', luci_app: !!access('/usr/share/luci/menu.d/luci-app-ttyd.json'),
 		running: system('/etc/init.d/ttyd running >/dev/null 2>&1') == 0
 	};
 }

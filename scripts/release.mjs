@@ -92,6 +92,14 @@ const rawPub = rawPublic(privateKey), sig = sign(null, data, privateKey);
 writeFileSync(`${tarPath}.sig`, `untrusted comment: signature from Lumen release key\n${b64(Buffer.concat([Buffer.from('Ed'), fingerprint(rawPub), sig]))}\n`);
 writeFileSync(join(out, 'latest.json'), JSON.stringify({ version, released: new Date().toISOString(), tarball, sha256, size: data.length, notes }, null, 2) + '\n');
 writeFileSync(join(out, 'install.sh'), managerSrc); chmodSync(join(out, 'install.sh'), 0o755);
+// the installer's fingerprint, for people who check it before running it (also shown in the README)
+const installSha = createHash('sha256').update(managerSrc).digest('hex');
+writeFileSync(join(out, 'install.sh.sha256'), `${installSha}  install.sh\n`);
+if (out === join(ROOT, 'release')) {
+  const readme = join(ROOT, 'README.md');
+  const txt = readFileSync(readme, 'utf8').replace(/<!-- install-sha256 -->[\s\S]*?<!-- \/install-sha256 -->/, `<!-- install-sha256 -->The fingerprint of the current installer is \`${installSha}\`.<!-- /install-sha256 -->`);
+  writeFileSync(readme, txt);
+}
 rmSync(stage, { recursive: true, force: true });
 
 // keep the three newest versions, drop the rest
@@ -99,5 +107,5 @@ const vnum = (f) => f.match(/lumen-(\d+)\.(\d+)\.(\d+)\.tar\.gz$/)?.slice(1).map
 const old = readdirSync(out).filter((f) => vnum(f)).sort((a, b) => { const x = vnum(a), y = vnum(b); return y[0] - x[0] || y[1] - x[1] || y[2] - x[2]; }).slice(3);
 for (const f of old) { rmSync(join(out, f)); rmSync(join(out, f + '.sig'), { force: true }); }
 
-console.log(`Lumen ${version}: ${tarball} ${(data.length / 1024) | 0} KB, ${manifest.length} files\nsha256 ${sha256}\nout    ${out}`);
-if (out === join(ROOT, 'release')) console.log('\nNext: git add release && git commit -m "release ' + version + '" && git push');
+console.log(`Lumen ${version}: ${tarball} ${(data.length / 1024) | 0} KB, ${manifest.length} files\nsha256 ${sha256}\ninstall.sh sha256 ${installSha}\nout    ${out}`);
+if (out === join(ROOT, 'release')) console.log('\nNext: git add release README.md && git commit -m "release ' + version + '" && git push');
