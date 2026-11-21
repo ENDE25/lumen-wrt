@@ -11,7 +11,7 @@ in one lightweight web app that installs with a single command.
 
 <br>
 
-![Version](https://img.shields.io/badge/version-0.18.3-006fff?style=flat-square)
+![Version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2FENDE25%2Flumen-wrt%2Fmain%2Frelease%2Flatest.json&query=%24.version&label=version&color=006fff&style=flat-square)
 ![OpenWrt](https://img.shields.io/badge/OpenWrt-25.12-1f6feb?style=flat-square)
 ![Footprint](https://img.shields.io/badge/web%20app-~115%20KB%20gzip-0ea66b?style=flat-square)
 ![Dependencies](https://img.shields.io/badge/runtime%20dependencies-0-0ea66b?style=flat-square)
