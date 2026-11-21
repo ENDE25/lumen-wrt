@@ -13,7 +13,7 @@ in one lightweight web app that installs with a single command.
 
 ![Version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2FENDE25%2Flumen-wrt%2Fmain%2Frelease%2Flatest.json&query=%24.version&label=version&color=006fff&style=flat-square)
 ![OpenWrt](https://img.shields.io/badge/OpenWrt-25.12-1f6feb?style=flat-square)
-![Footprint](https://img.shields.io/badge/web%20app-~115%20KB%20gzip-0ea66b?style=flat-square)
+![Footprint](https://img.shields.io/badge/web%20app-~175%20KB%20gzip-0ea66b?style=flat-square)
 ![Dependencies](https://img.shields.io/badge/runtime%20dependencies-0-0ea66b?style=flat-square)
 
 [Features](#features) · [Screenshots](#screenshots) · [Install](#installation) · [How it works](#how-it-works) · [Security](#security-model) · [FAQ](#faq)
@@ -55,7 +55,7 @@ in light and dark themes, on desktop and phone.
 - **See everything at a glance.** Throughput, CPU, memory, temperatures, services, ports and every device on the network, live.
 - **Know who uses what.** Traffic history per interface and per device, with names, vendors and logos.
 - **Change things without fear.** Every risky change has a countdown and rolls back by itself if you lose access.
-- **Light on the router.** A ~115 KB web app and two tiny components. No database, no Node.js, nothing running in the background except a small collector.
+- **Light on the router.** A ~175 KB web app and two tiny components. No database, no Node.js, nothing running in the background except a small collector.
 - **Lives next to LuCI.** It never touches LuCI, so you always have a fallback.
 - **Installs and updates itself.** One command to install, one click to update, one click to remove.
 
@@ -343,7 +343,7 @@ flowchart TD
 The signing key is pinned on first install, so an update signed with any other key is refused. The install record is only written after the new version has proven healthy.
 
 ### Footprint
-- **On the router:** the web app (under 1 MB on disk, ~115 KB of JavaScript over the wire), a ucode plugin, a collector, and a few small scripts. Runtime data lives in `/tmp`.
+- **On the router:** the web app (under 1 MB on disk, ~165 KB of JavaScript over the wire), a ucode plugin, a collector, and a few small scripts. Runtime data lives in `/tmp`.
 - **In the browser:** no framework runtime to download beyond the app itself, and no third-party requests except the optional version checks described below.
 
 <br>
