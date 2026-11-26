@@ -154,6 +154,9 @@ export interface ClientTraffic {
   running: boolean;
   now?: number;
   since?: number | null;
+  persist?: boolean;           // history is mirrored to a file, so it survives a reboot
   totals?: Record<string, [number, number]>;   // mac -> [download, upload] bytes
+  last?: Record<string, number>;               // mac -> when it last had traffic (unix seconds)
+  meta?: Record<string, { ip?: string; name?: string }>;   // mac -> last known IPv4 address and DHCP name
 }
 export interface ClientSeries { now?: number; step?: number; t: number[]; rx: number[]; tx: number[] }

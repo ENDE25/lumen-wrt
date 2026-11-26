@@ -39,16 +39,32 @@
   async function loadClients() { try { ct = await getClientTraffic(cRange); } catch { ct = null; } }
   $effect(() => { cRange; loadClients(); });
   const allRows = $derived(clientRows(ct, clientList));
-  // On a LAN-side interface (a Wi-Fi network, a port) the table shows the devices connected to it now.
-  // On the WAN or a bridge it shows every device. Per-device totals are not split by interface.
+
+  // The General view lists every device once: per-device counters are not split by interface, so nothing is
+  // counted twice. A device that left the network keeps its row while it still has traffic in the period.
+  // Small ones (under 1 MB) are folded away unless asked for.
+  const MIN = 1048576;
+  let view = $state<'general' | 'interfaces'>('general');
+  let filter = $state<'all' | 'online' | 'offline'>('all');
+  let showAll = $state(false);
+  let onlyHere = $state(false);
+  // In the By interface view, the list can be narrowed to the devices connected to a Wi-Fi network or port now.
   const devOf = $derived(new Map(clientList.map((c) => [c.mac.toLowerCase(), c.link?.dev])));
-  const scoped = $derived(!!dev && !isWan(dev) && live.devices[dev]?.type !== 'Bridge');
+  const canScope = $derived(view === 'interfaces' && !!dev && !isWan(dev) && live.devices[dev]?.type !== 'Bridge');
+  const scoped = $derived(canScope && onlyHere);
+  const pool = $derived(scoped ? allRows.filter((x) => devOf.get(x.mac.toLowerCase()) === dev) : allRows);
+  const visible = $derived(showAll ? pool : pool.filter((r) => r.all >= MIN));
+  const hiddenCount = $derived(pool.length - pool.filter((r) => r.all >= MIN).length);
+  const counts = $derived({ all: visible.length, online: visible.filter((r) => r.online === true).length, offline: visible.filter((r) => r.online === false).length });
   const rows = $derived.by(() => {
-    if (!scoped) return allRows;
-    const r = allRows.filter((x) => devOf.get(x.mac.toLowerCase()) === dev);
+    const r = visible.filter((x) => filter === 'all' || (filter === 'online' ? x.online === true : x.online === false));
     const top = Math.max(1, ...r.map((x) => x.all));
     return r.map((x) => ({ ...x, pct: (x.all / top) * 100 }));
   });
+  function ago(t: number) {
+    const d = Math.max(0, (ct?.now ?? Date.now() / 1000) - t);
+    return d < 5400 ? `${Math.max(1, Math.round(d / 60))} min ago` : d < 129600 ? `${Math.round(d / 3600)} h ago` : `${Math.round(d / 86400)} d ago`;
+  }
   async function openClient(r: ClientRow) {
     selClient = r; series = null;
     try { series = await getClientSeries(r.mac, cRange); } catch { series = { t: [], rx: [], tx: [] }; }
@@ -76,7 +92,15 @@
   // what the router sends to the devices, so received/sent are swapped there.
   const wanDevs = $derived(new Set(live.wans.map((w) => w.iface.l3_device ?? w.dev).filter(Boolean) as string[]));
   function isWan(d: string) { return wanDevs.size ? wanDevs.has(d) : d === live.wan?.l3_device; }
-  const flip = $derived(!!dev && !isWan(dev));
+  const flip = $derived(view === 'interfaces' && !!dev && !isWan(dev));
+  // General view: everything that crosses the Internet links (each byte crosses exactly one). Otherwise the chosen interface.
+  const wanList = $derived(devices.filter((d) => isWan(d)));
+  const selDevs = $derived(view === 'general' && wanList.length ? wanList : dev ? [dev] : []);
+  const sumSeries = (m: Record<string, number[]> | undefined) => {
+    const out: number[] = [];
+    for (const d of selDevs) (m?.[d] ?? []).forEach((v, i) => (out[i] = (out[i] ?? 0) + v));
+    return out;
+  };
 
   // Resample onto a uniform grid so gaps (collector stopped) show as zero instead of stretching the line.
   // Very fine data (short intervals over long ranges) is merged so the chart never draws more than ~1500 points.
@@ -84,7 +108,7 @@
   const grid = $derived.by(() => {
     if (!h?.step || !h.now) return null;
     const base = h.step, end = Math.ceil(h.now / base) * base, n = Math.ceil(span / base), start = end - n * base;
-    const rx0 = new Array(n).fill(0), tx0 = new Array(n).fill(0), R = h.rx?.[dev] ?? [], T = h.tx?.[dev] ?? [];
+    const rx0 = new Array(n).fill(0), tx0 = new Array(n).fill(0), R = sumSeries(h.rx), T = sumSeries(h.tx);
     (h.t ?? []).forEach((t, i) => { const k = Math.floor((t - start) / base); if (k >= 0 && k < n) { rx0[k] += R[i]; tx0[k] += T[i]; } });
     const agg = Math.max(1, Math.ceil(n / MAX_POINTS)), step = base * agg, m = Math.ceil(n / agg);
     const rx = new Array(m).fill(0), tx = new Array(m).fill(0);
@@ -125,7 +149,11 @@
   <div class="page-head">
     <h1>Traffic</h1>
     <div class="tools">
-      {#if devices.length}<select class="input sel" bind:value={dev} aria-label="Interface">{#each devices as d}<option value={d}>{d}{d === live.wan?.l3_device ? ' (Internet)' : ''}</option>{/each}</select>{/if}
+      <div class="seg" role="tablist" aria-label="View">
+        <button role="tab" aria-selected={view === 'general'} class:on={view === 'general'} onclick={() => (view = 'general')}>General</button>
+        <button role="tab" aria-selected={view === 'interfaces'} class:on={view === 'interfaces'} onclick={() => (view = 'interfaces')}>By interface</button>
+      </div>
+      {#if view === 'interfaces' && devices.length}<select class="input sel" bind:value={dev} aria-label="Interface">{#each devices as d}<option value={d}>{d}{d === live.wan?.l3_device ? ' (Internet)' : ''}</option>{/each}</select>{/if}
       <div class="seg" role="tablist">{#each RANGES as r}<button role="tab" aria-selected={range === r.v} class:on={range === r.v} onclick={() => (range = r.v)}>{r.label}</button>{/each}</div>
     </div>
   </div>
@@ -152,42 +180,55 @@
 
     <div class="card" style="margin-top:16px" class:dim={loading}>
       <div class="card-title">
-        <h2>{dev} <span class="faint">· {RANGES.find((r) => r.v === range)!.label}</span></h2>
+        <h2>{view === 'general' ? (wanList.length > 1 ? 'Internet · all links' : 'Internet') : dev} <span class="faint">· {RANGES.find((r) => r.v === range)!.label}</span></h2>
         <span class="legend"><i style="background:var(--rx)"></i>Download <i style="background:var(--tx)"></i>Upload</span>
       </div>
       <HistoryChart data={grid.data} step={grid.step} start={grid.start} end={grid.end} labels={['Download', 'Upload']} />
     </div>
 
     <div class="card" style="margin-top:16px">
-      <div class="card-title"><h2>Clients{scoped ? ` on ${dev}` : ''} <span class="faint">· {cLabel}</span></h2>{#if range === '90d'}<span class="faint small">per-client data is kept for 30 days</span>{/if}</div>
-      {#if scoped}<p class="faint small scope">Devices connected to {dev} right now, with everything they used in this period (also while connected elsewhere). <button class="linkbtn" onclick={() => (dev = live.wan?.l3_device && devices.includes(live.wan.l3_device) ? live.wan.l3_device : dev)}>Show all devices</button></p>{/if}
+      <div class="card-title"><h2>Devices{scoped ? ` on ${dev}` : ''} <span class="faint">· {cLabel}</span></h2>{#if range === '90d'}<span class="faint small">per-device data is kept for 30 days</span>{/if}</div>
       {#if ct?.offload}
         <p class="warn"><Icon name="alert" size={16} />Flow offloading is enabled on this router: established connections bypass the counters, so these numbers are lower than reality.</p>
       {/if}
       {#if !ct}
-        <p class="muted">Per-client data is unavailable. Deploy the latest collector (<code>npm run deploy</code>).</p>
+        <p class="muted">Per-device data is unavailable. Deploy the latest collector (<code>npm run deploy</code>).</p>
       {:else if !ct.enabled}
-        <p class="muted">Per-client accounting is turned off (<code>option clients '0'</code> in <code>/etc/config/lumen</code>).</p>
-      {:else if !rows.length && scoped}
-        <p class="muted">No device connected to {dev} right now has recorded traffic in this period.</p>
-      {:else if !rows.length}
-        <p class="muted">No client traffic recorded yet. Lumen counts what LAN devices send and receive <em>through</em> the router (mostly Internet use); it appears here a few minutes after the first connections.</p>
+        <p class="muted">Per-device accounting is turned off (<code>option clients '0'</code> in <code>/etc/config/lumen</code>).</p>
+      {:else if !allRows.length}
+        <p class="muted">No device traffic recorded yet. Lumen counts what LAN devices send and receive <em>through</em> the router (mostly Internet use); it appears here a few minutes after the first connections.</p>
       {:else}
-        <div class="tw"><table class="tbl">
-          <thead><tr><th>Client</th><th>Download</th><th>Upload</th><th>Total</th><th class="bar"></th></tr></thead>
-          <tbody>
-            {#each rows as r (r.mac)}
-              <tr class="click" tabindex="0" onclick={() => openClient(r)} onkeydown={(e) => e.key === 'Enter' && openClient(r)}>
-                <td><span class="who"><span class="cico"><Glyph brand={r.brand} icon={r.kind} size={16} /></span><span class="nm"><b>{r.name}</b><small class="faint">{r.sub}</small></span></span></td>
-                <td class="num" style="color:var(--rx)">{bytes(r.rx)}</td><td class="num" style="color:var(--tx)">{bytes(r.tx)}</td><td class="num"><b>{bytes(r.all)}</b></td>
-                <td class="bar"><i style:width="{r.pct}%"></i></td>
-              </tr>
-            {/each}
-          </tbody>
-        </table></div>
+        <div class="filters">
+          <div class="seg" role="tablist" aria-label="Show devices">
+            <button role="tab" aria-selected={filter === 'all'} class:on={filter === 'all'} onclick={() => (filter = 'all')}>All <span class="cnt">{counts.all}</span></button>
+            <button role="tab" aria-selected={filter === 'online'} class:on={filter === 'online'} onclick={() => (filter = 'online')}>Connected now <span class="cnt">{counts.online}</span></button>
+            <button role="tab" aria-selected={filter === 'offline'} class:on={filter === 'offline'} onclick={() => (filter = 'offline')}>Not connected <span class="cnt">{counts.offline}</span></button>
+          </div>
+          {#if canScope}<label class="opt"><input type="checkbox" bind:checked={onlyHere} />Only devices connected to {dev} now</label>{/if}
+          {#if hiddenCount > 0 || showAll}<button class="linkbtn" onclick={() => (showAll = !showAll)}>{showAll ? 'Hide devices under 1 MB' : `Show ${hiddenCount} more under 1 MB`}</button>{/if}
+        </div>
+        {#if !rows.length}
+          <p class="muted">{scoped ? `No device connected to ${dev} right now has recorded traffic in this period.` : 'No devices match this filter.'}</p>
+        {:else}
+          <div class="tw"><table class="tbl">
+            <thead><tr><th>Device</th><th>Download</th><th>Upload</th><th>Total</th><th class="bar"></th></tr></thead>
+            <tbody>
+              {#each rows as r (r.mac)}
+                <tr class="click" class:gone={r.online === false} tabindex="0" onclick={() => openClient(r)} onkeydown={(e) => e.key === 'Enter' && openClient(r)}>
+                  <td><span class="who"><span class="cico"><Glyph brand={r.brand} icon={r.kind} size={16} /></span><span class="nm"><b>{r.name}</b><small class="faint">{r.sub}</small></span>{#if r.online === false}<span class="away">{r.last ? `Active ${ago(r.last)}` : 'Not connected'}</span>{/if}</span></td>
+                  <td class="num" style="color:var(--rx)">{bytes(r.rx)}</td><td class="num" style="color:var(--tx)">{bytes(r.tx)}</td><td class="num"><b>{bytes(r.all)}</b></td>
+                  <td class="bar"><i style:width="{r.pct}%"></i></td>
+                </tr>
+              {/each}
+            </tbody>
+          </table></div>
+        {/if}
+        <p class="faint small foot">Each device counts what it sent and received through the router, once, whichever interface it used. Traffic between two local devices counts for both, so the rows can add up to more than the Internet total.</p>
+        {#if ct.persist === false}<p class="faint small foot">Device history is kept in memory and a reboot clears it. To keep it, set <code>persist</code> in <code>/etc/config/lumen</code> to a file on a disk.</p>{/if}
       {/if}
     </div>
 
+    {#if view === 'interfaces'}
     <div class="card" style="margin-top:16px">
       <div class="card-title"><h2>By interface</h2></div>
       <div class="tw"><table class="tbl">
@@ -202,6 +243,7 @@
         </tbody>
       </table></div>
     </div>
+    {/if}
   {:else}
     <div class="card"><p class="muted">Loading…</p></div>
   {/if}
@@ -231,7 +273,12 @@
   .v { font-size: 24px; font-weight: 650; display: inline-flex; align-items: center; gap: 4px; }
   .v.sm { font-size: 16px; line-height: 1.5; }
   .small { font-size: 12px; }
-  .scope { margin: -8px 0 10px; }
+  .filters { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin: 0 0 12px; }
+  .cnt { color: var(--text-3); font-weight: 400; margin-left: 4px; }
+  .opt { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-2); }
+  .foot { margin: 12px 0 0; }
+  tr.gone .who, tr.gone .num, tr.gone td.bar i { opacity: .62; }
+  .away { margin-left: 4px; font-size: 12px; color: var(--text-3); background: var(--surface-2); border-radius: 999px; padding: 2px 9px; white-space: nowrap; }
   .tagi { margin-left: 8px; font-family: var(--font); }
   .linkbtn { background: none; border: 0; padding: 0; color: var(--accent); font: inherit; cursor: pointer; }
   .warn { display: flex; gap: 8px; align-items: center; background: color-mix(in srgb, var(--warn) 14%, transparent); border-radius: 8px; padding: 9px 12px; font-size: 13px; margin: -4px 0 12px; }

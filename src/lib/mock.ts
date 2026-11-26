@@ -275,8 +275,24 @@ async function mockBase(obj: string, method: string, args: any = {}): Promise<an
       const base: Record<string, number> = { 'A4:83:E7:11:22:01': 3.2, 'F0:18:98:0B:3C:02': 7.5, 'DC:A6:32:4F:19:03': 1.1, '3C:5A:B4:77:AA:04': 5.1, '00:11:32:AB:CD:05': 11.8, 'EC:B1:D7:90:12:06': 0.05, 'C8:2B:96:33:44:07': 0.02, '00:00:F0:AA:BB:08': 2.4, '9C:B6:D0:12:34:09': 14.6, '50:DE:06:55:66:0A': 6.3, '00:06:5B:99:88:0C': 1.9, 'F6:3A:11:55:77:0D': 2.8 };
       const totals: Record<string, [number, number]> = {};
       for (const [m, gb] of Object.entries(base)) totals[m.toLowerCase()] = [Math.round(gb * 1e9 * mult), Math.round(gb * 1e9 * mult * (0.06 + (m.charCodeAt(3) % 7) / 40))];
+      // Devices that already left the network: the router has forgotten them, the collector remembers a little.
+      const gone: [string, number, number, string | null, string | null][] = [
+        ['ac:5f:3e:77:10:99', 2.1, 18, 'Guest-Laptop', '192.168.1.160'],
+        ['d8:3a:dd:12:34:56', 0.9, 9, null, '192.168.1.161'],
+        ['70:b3:d5:01:02:03', 0.0004, 22, null, null],          // under 1 MB: folded away by default
+      ];
+      const nowS = Math.floor(Date.now() / 1000);
+      const meta: Record<string, { ip?: string; name?: string }> = {}, last: Record<string, number> = {};
+      for (const [m, gb, h, name, ip] of gone) {
+        totals[m] = [Math.round(gb * 1e9 * mult), Math.round(gb * 1e9 * mult * 0.07)];
+        last[m] = nowS - h * 3600;
+        if (name || ip) meta[m] = { ...(name ? { name } : {}), ...(ip ? { ip } : {}) };
+      }
       totals['?'] = [Math.round(0.4e9 * mult), Math.round(0.03e9 * mult)];
-      return { enabled: true, offload: false, running: true, now: Math.floor(Date.now() / 1000), since: Math.floor(Date.now() / 1000) - 40 * 86400, totals };
+      // the three hosts the demo shows as offline: their traffic stopped a few hours ago
+      const offlineAgo: [string, number][] = [['00:00:f0:aa:bb:08', 5], ['00:06:5b:99:88:0c', 14], ['f6:3a:11:55:77:0d', 3]];
+      offlineAgo.forEach(([m, h]) => { last[m] = nowS - h * 3600; });
+      return { enabled: true, offload: false, persist: false, running: true, now: nowS, since: nowS - 40 * 86400, totals, last, meta };
     }
     case 'lumen.client': {
       const span = ({ '24h': 86400, '7d': 604800, '30d': 2592000 } as Record<string, number>)[args.range] ?? 86400;

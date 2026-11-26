@@ -125,7 +125,7 @@ function restore() {
 
 
 // ================= per-client accounting =================
-let cl = { v: 1, last: {}, hour: { t: [], d: {} } };   // d: { mac: { rx: [download], tx: [upload] } }
+let cl = { v: 1, last: {}, hour: { t: [], d: {} }, meta: {} };   // d: { mac: { rx: [download], tx: [upload] } }; meta: { mac: { ip, name } } of devices seen
 let appliedRules = '';
 let warned = false;
 
@@ -256,6 +256,16 @@ function neigh_map() {
 	return m;
 }
 
+/** lower-case MAC -> DHCP host name, from dnsmasq's lease file (lines: expiry mac ip name client-id) */
+function lease_names() {
+	let m = {};
+	for (let line in split(readfile('/tmp/dhcp.leases') ?? '', '\n')) {
+		let f = split(trim(line), ' ');
+		if (length(f) >= 4 && f[3] != '*') m[lc(f[1])] = substr(f[3], 0, 63);
+	}
+	return m;
+}
+
 function sample_clients(now) {
 	let devs = lan_devices();
 	if (!length(devs)) {
@@ -286,6 +296,18 @@ function sample_clients(now) {
 	let hour = now - (now % 3600);
 	for (let mac in keys(d)) cl_add(cl.hour, hour, mac, d[mac][0], d[mac][1]);
 	cl_trim(cl.hour, CLIENT_DAYS * 24);
+	// Remember who these devices were (last IPv4 address and DHCP name), so a device that has left the network
+	// keeps its name in the traffic lists. Forgotten together with its counters.
+	let names = lease_names(), ips = {};
+	for (let a in keys(nb)) if (match(a, /^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$/) && !(nb[a] in ips)) ips[nb[a]] = a;
+	for (let mac in keys(d)) {
+		if (mac == '?') continue;
+		let who = cl.meta[mac] ?? {};
+		if (ips[mac]) who.ip = ips[mac];
+		if (names[mac]) who.name = names[mac];
+		cl.meta[mac] = who;
+	}
+	for (let mac in keys(cl.meta)) if (!(mac in cl.hour.d)) delete cl.meta[mac];
 	mkdir(DIR);
 	writefile(CL_FILE + '.tmp', sprintf('%J', cl));
 	rename(CL_FILE + '.tmp', CL_FILE);
@@ -295,7 +317,7 @@ function restore_clients() {
 	for (let p in [CL_FILE, cfg.persist ? cfg.persist + '.clients' : null]) {
 		if (!p || !access(p)) continue;
 		let d = json(readfile(p));
-		if (d?.v == 1 && d.hour) { cl = d; return; }
+		if (d?.v == 1 && d.hour) { cl = d; if (!cl.meta) cl.meta = {}; return; }
 	}
 }
 

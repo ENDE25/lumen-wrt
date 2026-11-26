@@ -171,13 +171,15 @@ function collector_cfg() {
 		enabled: (c.get('lumen', 'history', 'clients') ?? '1') != '0',
 		// with flow offloading, established flows bypass the forward hook, so counters under-report
 		offload: (c.get('firewall', '@defaults[0]', 'flow_offloading') ?? '0') == '1' || (c.get('firewall', '@defaults[0]', 'flow_offloading_hw') ?? '0') == '1',
+		// history is only kept across reboots when the collector mirrors it to a file
+		persist: (c.get('lumen', 'history', 'persist') ?? '') != '',
 	};
 }
 
 function clients(range) {
 	let span = CL_RANGES[range] ?? 86400, cfg = collector_cfg();
 	let d = clients_file();
-	let out = { enabled: cfg.enabled, offload: cfg.offload, running: false };
+	let out = { enabled: cfg.enabled, offload: cfg.offload, persist: cfg.persist, running: false };
 	if (!d) return out;
 	let now = time(), st = stat(CLIENTS_FILE);
 	out.running = now - (st?.mtime ?? 0) < 3 * cfg.interval + 30;
@@ -191,6 +193,17 @@ function clients(range) {
 		for (let i = from; i < length(d.hour.t); i++) { rx += d.hour.d[mac].rx[i]; tx += d.hour.d[mac].tx[i]; }
 		if (rx || tx) out.totals[mac] = [rx, tx];
 	}
+	// when each device last had traffic (end of its latest active hour, never in the future), and who it was
+	out.last = {};
+	for (let mac in keys(d.hour.d)) {
+		let b = d.hour.d[mac];
+		for (let i = length(d.hour.t) - 1; i >= 0; i--) {
+			if (!b.rx[i] && !b.tx[i]) continue;
+			out.last[mac] = d.hour.t[i] + 3600 > now ? now : d.hour.t[i] + 3600;
+			break;
+		}
+	}
+	out.meta = d.meta ?? {};
 	return out;
 }
 
