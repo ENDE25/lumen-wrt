@@ -468,6 +468,9 @@ function wispPatch(k: string, args: any, r: any): any {
         ? { results: [{ mac: UP_MAC, signal: -55, noise: -95, rx: { rate: 866000 }, tx: { rate: 780000 } }] } : r;
     case 'luci-rpc.getDHCPLeases':
       return { ...r, dhcp_leases: r.dhcp_leases.filter((l: any) => !isUp(l.ipaddr)) };
+    case 'lumen.history':
+      for (const m of [r.rx, r.tx]) if (m?.eth0) { m['phy0-sta0'] = m.eth0; delete m.eth0; }   // the Wi-Fi uplink carries the Internet traffic
+      return r;
     case 'lumen.topology':
       return {
         bridges: { 'br-lan': ['lan1', 'lan2', 'phy1-ap0'] },

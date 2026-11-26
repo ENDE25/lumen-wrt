@@ -92,10 +92,11 @@
   // what the router sends to the devices, so received/sent are swapped there.
   const wanDevs = $derived(new Set(live.wans.map((w) => w.iface.l3_device ?? w.dev).filter(Boolean) as string[]));
   function isWan(d: string) { return wanDevs.size ? wanDevs.has(d) : d === live.wan?.l3_device; }
-  const flip = $derived(view === 'interfaces' && !!dev && !isWan(dev));
   // General view: everything that crosses the Internet links (each byte crosses exactly one). Otherwise the chosen interface.
   const wanList = $derived(devices.filter((d) => isWan(d)));
   const selDevs = $derived(view === 'general' && wanList.length ? wanList : dev ? [dev] : []);
+  // Orientation follows the interface actually plotted: on a LAN-side one, what the router sends is what devices download.
+  const flip = $derived(selDevs.length === 1 && !isWan(selDevs[0]));
   const sumSeries = (m: Record<string, number[]> | undefined) => {
     const out: number[] = [];
     for (const d of selDevs) (m?.[d] ?? []).forEach((v, i) => (out[i] = (out[i] ?? 0) + v));
@@ -180,7 +181,7 @@
 
     <div class="card" style="margin-top:16px" class:dim={loading}>
       <div class="card-title">
-        <h2>{view === 'general' ? (wanList.length > 1 ? 'Internet · all links' : 'Internet') : dev} <span class="faint">· {RANGES.find((r) => r.v === range)!.label}</span></h2>
+        <h2>{view === 'general' ? (wanList.length ? `Internet · ${wanList.join(', ')}` : `${dev} (no Internet link found)`) : dev} <span class="faint">· {RANGES.find((r) => r.v === range)!.label}</span></h2>
         <span class="legend"><i style="background:var(--rx)"></i>Download <i style="background:var(--tx)"></i>Upload</span>
       </div>
       <HistoryChart data={grid.data} step={grid.step} start={grid.start} end={grid.end} labels={['Download', 'Upload']} />
