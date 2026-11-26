@@ -1,8 +1,8 @@
 {
-  "version": "0.24.1",
-  "released": "2026-11-26T12:19:28.639Z",
-  "tarball": "lumen-0.24.1.tar.gz",
-  "sha256": "b756c0b48dc5bc6423aa2b6906e2b0c59377492876b304f868790033f99a6afb",
-  "size": 568792,
+  "version": "0.25.0",
+  "released": "2026-11-26T12:32:44.354Z",
+  "tarball": "lumen-0.25.0.tar.gz",
+  "sha256": "6065b15e2f915aa2068b9963fce546874700484a91907d8fbf236061c7b767e5",
+  "size": 584113,
   "notes": ""
 }
