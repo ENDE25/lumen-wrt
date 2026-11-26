@@ -90,6 +90,10 @@ const UCI: Record<string, Record<string, any>> = {
   network: {
     lan: { '.name': 'lan', '.type': 'interface', device: 'br-lan', proto: 'static', ipaddr: ['192.168.1.1/24'] },
     wan: { '.name': 'wan', '.type': 'interface', device: 'eth0', proto: 'dhcp' },
+    wg0: { '.name': 'wg0', '.type': 'interface', proto: 'wireguard', private_key: 'aGVyZS1pcy1hLWRlbW8ta2V5LW5vdC1zZWNyZXQtMTIzNDU=', listen_port: '51820', addresses: ['10.10.10.1/24'] },
+    cfgwp1: { '.name': 'cfgwp1', '.type': 'wireguard_wg0', '.anonymous': true, description: 'Marta iPhone', public_key: 'Fp3gHk0Zr9vYq2nD7tUe8WcXb1JmLsA4oPiR6yNhTvE=', preshared_key: 'U2VjcmV0UHNrMDEyMzQ1Njc4OWFiY2RlZmdoaWprbG0=', allowed_ips: ['10.10.10.2/32'], route_allowed_ips: '1', persistent_keepalive: '25' },
+    cfgwp2: { '.name': 'cfgwp2', '.type': 'wireguard_wg0', '.anonymous': true, description: 'Work laptop', public_key: 'Qd8sLw2Nf5Yt0HcRz7BvUo3KjXm9PaE1gIe4TyZhVnA=', allowed_ips: ['10.10.10.3/32'], route_allowed_ips: '1', persistent_keepalive: '25' },
+    cfgwp3: { '.name': 'cfgwp3', '.type': 'wireguard_wg0', '.anonymous': true, description: 'Cabin router', public_key: 'Zr4cMb7Xe1Vn9QpUy3DwKs0Hj6TfLa2GoIi8RtBhYmE=', allowed_ips: ['10.10.10.4/32', '192.168.50.0/24'], route_allowed_ips: '1', persistent_keepalive: '25' },
     cfg0br: { '.name': 'cfg0br', '.type': 'device', '.anonymous': true, name: 'br-lan', type: 'bridge', ports: ['lan1', 'lan2', 'lan3'], vlan_filtering: '1' },
     cfg0v1: { '.name': 'cfg0v1', '.type': 'bridge-vlan', '.anonymous': true, device: 'br-lan', vlan: '1', ports: ['lan1:u*', 'lan2:u*', 'lan3:u*'] },
     cfg0v2: { '.name': 'cfg0v2', '.type': 'bridge-vlan', '.anonymous': true, device: 'br-lan', vlan: '30', ports: ['lan1:t', 'lan3:u*'], local: '0' },
@@ -109,11 +113,12 @@ const UCI: Record<string, Record<string, any>> = {
   },
   firewall: {
     cfg0def: { '.name': 'cfg0def', '.type': 'defaults', '.anonymous': true, syn_flood: '1', input: 'REJECT', output: 'ACCEPT', forward: 'REJECT' },
-    cfg0lan: { '.name': 'cfg0lan', '.type': 'zone', '.anonymous': true, name: 'lan', network: ['lan'], input: 'ACCEPT', output: 'ACCEPT', forward: 'ACCEPT' },
+    cfg0lan: { '.name': 'cfg0lan', '.type': 'zone', '.anonymous': true, name: 'lan', network: ['lan', 'wg0'], input: 'ACCEPT', output: 'ACCEPT', forward: 'ACCEPT' },
     cfg0wan: { '.name': 'cfg0wan', '.type': 'zone', '.anonymous': true, name: 'wan', network: ['wan', 'wan6'], input: 'REJECT', output: 'ACCEPT', forward: 'DROP', masq: '1', mtu_fix: '1' },
     cfg0fwd: { '.name': 'cfg0fwd', '.type': 'forwarding', '.anonymous': true, src: 'lan', dest: 'wan' },
     cfg0r1: { '.name': 'cfg0r1', '.type': 'redirect', '.anonymous': true, name: 'NAS web UI', src: 'wan', src_dport: '5000', dest: 'lan', dest_ip: '192.168.1.5', dest_port: '5000', proto: 'tcp', target: 'DNAT' },
     cfg0r2: { '.name': 'cfg0r2', '.type': 'redirect', '.anonymous': true, name: 'SSH to Raspberry Pi', src: 'wan', src_dport: '2222', dest: 'lan', dest_ip: '192.168.1.10', dest_port: '22', proto: 'tcp', target: 'DNAT', enabled: '0' },
+    cfg0wg: { '.name': 'cfg0wg', '.type': 'rule', '.anonymous': true, name: 'Allow-WireGuard-wg0', src: 'wan', proto: 'udp', dest_port: '51820', target: 'ACCEPT' },
     cfg0u1: { '.name': 'cfg0u1', '.type': 'rule', '.anonymous': true, name: 'Allow-Ping', src: 'wan', proto: 'icmp', icmp_type: ['echo-request'], family: 'ipv4', target: 'ACCEPT' },
     cfg0u2: { '.name': 'cfg0u2', '.type': 'rule', '.anonymous': true, name: 'Allow-IPSec-ESP', src: 'wan', dest: 'lan', proto: 'esp', target: 'ACCEPT' },
     cfg0u3: { '.name': 'cfg0u3', '.type': 'rule', '.anonymous': true, name: 'Block kids tablet at night', src: 'lan', src_ip: '192.168.1.103', dest: 'wan', proto: 'tcp udp', target: 'REJECT', enabled: '0' },
@@ -214,6 +219,7 @@ async function mockBase(obj: string, method: string, args: any = {}): Promise<an
         { interface: 'wan', up: true, proto: 'dhcp', uptime: 86400 + up(), l3_device: 'eth0', device: 'eth0', 'ipv4-address': [{ address: '85.62.14.201', mask: 24 }], route: [{ target: '0.0.0.0', mask: 0, nexthop: '85.62.14.1' }], 'dns-server': ['1.1.1.1', '9.9.9.9'] },
         { interface: 'lan', up: true, proto: 'static', uptime: 324000 + up(), l3_device: 'br-lan', device: 'br-lan', 'ipv4-address': [{ address: '192.168.1.1', mask: 24 }] },
         { interface: 'wan6', up: false, proto: 'dhcpv6', device: 'eth0' },
+        { interface: 'wg0', up: true, proto: 'wireguard', uptime: 52000 + up(), l3_device: 'wg0', device: 'wg0', 'ipv4-address': [{ address: '10.10.10.1', mask: 24 }] },
       ] };
     case 'network.device.status': {
       tick();
@@ -401,6 +407,18 @@ async function mockBase(obj: string, method: string, args: any = {}): Promise<an
     const mk = (ssid: string, ch: number, sig: number, sec = true) => ({ ssid, bssid: Array.from({ length: 6 }, (_, i) => ((ch * 37 + sig * 11 + i * 53) & 255).toString(16).padStart(2, '0')).join(':').toUpperCase(), channel: ch, signal: sig, encryption: { enabled: sec } });
     return { results: g ? [mk('Neighbour-5G', 36, -62), mk('CafeWiFi', 44, -71, false), mk('Vodafone-5G', 149, -80), mk('TP-Link_5G', 36, -84)]
       : [mk('MOVISTAR_1A2B', 1, -55), mk('MIWIFI_2G', 6, -61), mk('Vodafone-9F', 6, -70), mk('Hidden', 11, -78), mk('', 1, -82), mk('Lumen-Guest-X', 7, -88)] };
+  }
+  if (k === 'lumen.wg_status') {
+    const now = Math.floor(Date.now() / 1000), tick = up();
+    return { installed: true, proto: true, interfaces: { wg0: { public: 'Hn6Ck1Wx3Vb8Qy2Mf9TzRe4JpLs7Ao0DuGi5NtYhXaE=', port: 51820, peers: [
+      { public: 'Fp3gHk0Zr9vYq2nD7tUe8WcXb1JmLsA4oPiR6yNhTvE=', endpoint: '88.14.203.7:49512', allowed: ['10.10.10.2/32'], handshake: now - 40, rx: 41e6 + tick * 900, tx: 612e6 + tick * 9000, keepalive: 25 },
+      { public: 'Qd8sLw2Nf5Yt0HcRz7BvUo3KjXm9PaE1gIe4TyZhVnA=', endpoint: '212.83.9.55:51311', allowed: ['10.10.10.3/32'], handshake: now - 7300, rx: 8.2e6, tx: 95e6, keepalive: 25 },
+      { public: 'Zr4cMb7Xe1Vn9QpUy3DwKs0Hj6TfLa2GoIi8RtBhYmE=', endpoint: null, allowed: ['10.10.10.4/32', '192.168.50.0/24'], handshake: 0, rx: 0, tx: 0, keepalive: 25 },
+    ] } } };
+  }
+  if (k === 'lumen.wg_keys') {
+    const rnd = () => { const b = new Uint8Array(32); crypto.getRandomValues(b); return btoa(String.fromCharCode(...b)); };   // 32 random bytes: 44 characters
+    return args.kind === 'psk' ? { psk: rnd() } : { private: args.key || rnd(), public: rnd() };
   }
   if (k === 'luci.setPassword') return {};
   if (k === 'luci.getTimezones') return { 'Europe/Madrid': { tzstring: 'CET-1CEST,M3.5.0,M10.5.0/3' }, 'Europe/London': { tzstring: 'GMT0BST,M3.5.0/1,M10.5.0' }, UTC: { tzstring: 'UTC0' }, 'America/New_York': { tzstring: 'EST5EDT,M3.2.0,M11.1.0' } };

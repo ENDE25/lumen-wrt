@@ -560,10 +560,51 @@ function terminal_ticket() {
 	return { ticket: t, expires: 60 };
 }
 
+// ---- WireGuard. The tunnels themselves are plain UCI (network + wireguard_<name> peer sections, edited by the
+// panel); this only adds what UCI cannot give: live status of every tunnel and key generation (wireguard-tools).
+const WG_KEY = /^[A-Za-z0-9+\/]{43}=$/;
+
+function wg_status() {
+	let out = { installed: !!access('/usr/bin/wg', 'x'), proto: !!access('/lib/netifd/proto/wireguard.sh'), interfaces: {} };
+	if (!out.installed) return out;
+	let p = popen('wg show all dump 2>/dev/null', 'r');
+	if (!p) return out;
+	let txt = p.read('all');
+	p.close();
+	// `wg show all dump`: an interface line (name, private key, public key, port, fwmark) is followed by its peers
+	// (name, public key, preshared key, endpoint, allowed ips, latest handshake, rx, tx, keepalive). Secrets are never returned.
+	for (let line in split(txt ?? '', '\n')) {
+		let f = split(line, '\t');
+		if (length(f) == 5) out.interfaces[f[0]] = { public: f[2], port: int(f[3]), peers: [] };
+		else if (length(f) == 9 && out.interfaces[f[0]])
+			push(out.interfaces[f[0]].peers, {
+				public: f[1], endpoint: f[3] == '(none)' ? null : f[3], allowed: f[4] == '(none)' ? [] : split(f[4], ','),
+				handshake: int(f[5]), rx: int(f[6]), tx: int(f[7]), keepalive: f[8] == 'off' ? 0 : int(f[8]),
+			});
+	}
+	return out;
+}
+
+/** kind 'key': a new key pair (or just the public key of the private `key` given); kind 'psk': a new preshared key. */
+function wg_keys(kind, priv) {
+	if (!access('/usr/bin/wg', 'x')) return { error: 'wireguard-tools is not installed' };
+	if (kind == 'psk') {
+		let psk = trim(run_text('wg genpsk'));
+		return match(psk, WG_KEY) ? { psk } : { error: 'could not generate a preshared key' };
+	}
+	let key = (priv != null && priv != '') ? priv : trim(run_text('wg genkey'));
+	if (!match(key, WG_KEY)) return { error: 'invalid private key' };
+	let pub = trim(run_text(`printf '%s' '${key}' | wg pubkey`));
+	if (!match(pub, WG_KEY)) return { error: 'could not derive the public key' };
+	return { private: key, public: pub };
+}
+
 const methods = {
 	terminal: { call: function(request) { return terminal_info(); } },
 	terminal_setup: { args: { mode: 'mode' }, call: function(request) { return terminal_setup(request.args?.mode); } },
 	terminal_ticket: { call: function(request) { return terminal_ticket(); } },
+	wg_status: { call: function(request) { return wg_status(); } },
+	wg_keys: { args: { kind: 'kind', key: 'key' }, call: function(request) { return wg_keys(request.args?.kind, request.args?.key); } },
 	apps: { call: function(request) { return { apps: read_apps(), luci: !!access('/www/cgi-bin/luci') }; } },
 	version: { call: function(request) { return lumen_version(); } },
 	self_status: { call: function(request) { return self_status(); } },

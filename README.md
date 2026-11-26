@@ -95,6 +95,11 @@ in light and dark themes, on desktop and phone.
 - A **Blocked** tab with an optional logging toggle: blocked connections per hour, top sources and most targeted ports, read from the system log only while the page is open.
 - **Traffic rules** you can reorder (first match wins), **zones** with default policies and forwardings, and **port forwards** with a client picker.
 
+### VPN
+- **WireGuard** servers and connections (OpenVPN is not supported yet). Create a **remote-access server** in one step: Lumen generates the keys on the router, adds the tunnel to a firewall zone and opens the UDP port. **Add devices** and get each one's configuration as a file and as a **QR code** to scan; the device's private key is shown once and Lumen does not keep it. Each peer shows its last handshake, where it connects from and its traffic.
+- **Import a provider's `.conf`** to send your network through a VPN provider. The page warns when the router sits behind another router (a private Internet address), where devices outside need a port forward on that router, and when a connection routes all traffic.
+- Needs the `wireguard-tools` package; if it is missing, the page links to the installer.
+
 ### DHCP & DNS
 - DHCP pools per interface, upstream DNS, rebinding protection, and **static IP reservations** (add them straight from a known client).
 
@@ -392,7 +397,7 @@ src/
   lib/          ubus client, data layer, UCI + safe-apply, vendor lookup, live poller, stores
   components/   charts, drawers, toggles, sidebar, top bar, brand glyphs
   routes/       one file per page (Dashboard, Network Map, Traffic, Clients, Wi-Fi,
-                Firewall, DHCP & DNS, Apps, Updates, Services, Backup, Settings, Logs)
+                Firewall, VPN, DHCP & DNS, Apps, Updates, Services, Backup, Settings, Logs)
   apps/         Lumen's own panels for add-on apps (registry in apps/index.ts)
   styles/       design tokens (light and dark) and base styles
 openwrt/
@@ -412,6 +417,7 @@ public/         favicon and the compressed vendor table
 - [ ] `opkg` backend for the Software page (OpenWrt 24.10 and earlier), with a compatibility test
 - [ ] Independence from LuCI packages (ship Lumen's own access rules and data methods)
 - [ ] Native `apk` package and feed
+- [ ] OpenVPN tunnels (only WireGuard for now)
 - [ ] More languages (English only for now)
 
 <br>

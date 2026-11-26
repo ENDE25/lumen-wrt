@@ -1,6 +1,7 @@
 <script lang="ts">
   let { name, size = 20 }: { name: string; size?: number } = $props();
   const P: Record<string, string> = {
+    vpn: 'M12 3l8 3v5c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6zM9.5 12v-1.5a2.5 2.5 0 0 1 5 0V12M9 12h6v4H9z',
     dashboard: 'M3 12a9 9 0 1 0 18 0 9 9 0 0 0-18 0zM12 12l4-4M12 7v1M7 12h1M17 12h-1',
     network: 'M6 6a2 2 0 1 0 0-.01zM18 6a2 2 0 1 0 0-.01zM12 19a2 2 0 1 0 0-.01zM7.5 7.5l3.5 9M16.5 7.5L13 16.5M8 6h8',
     devices: 'M3 7h18v6H3zM3 17h18v3H3zM7 10h.01M7 18.5h.01',

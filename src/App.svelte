@@ -19,6 +19,7 @@
   import Settings from './routes/Settings.svelte';
   import Apps from './routes/Apps.svelte';
   import Terminal from './routes/Terminal.svelte';
+  import Vpn from './routes/Vpn.svelte';
   import { router } from './lib/router.svelte';
   import { hasSession, onAuthLost } from './lib/ubus';
   import { getBoard } from './lib/api';
@@ -50,7 +51,7 @@
     });
   });
 
-  const pages = { dashboard: Dashboard, clients: Clients, network: Network, map: NetworkMap, dhcp: Dhcp, firewall: Firewall, wifi: Wifi, traffic: Traffic, updates: Updates, services: Services, logs: Logs, backup: Backup, settings: Settings, apps: Apps, terminal: Terminal } as const;
+  const pages = { dashboard: Dashboard, clients: Clients, network: Network, map: NetworkMap, dhcp: Dhcp, firewall: Firewall, wifi: Wifi, traffic: Traffic, updates: Updates, services: Services, logs: Logs, backup: Backup, settings: Settings, apps: Apps, terminal: Terminal, vpn: Vpn } as const;
   // A short reveal after signing in: the panel comes into focus, the rail slides in, cards rise one after another.
   function welcome() {
     authed = true;

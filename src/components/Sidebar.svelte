@@ -17,6 +17,7 @@
       { id: 'network', icon: 'devices', label: 'Network' },
       { id: 'wifi', icon: 'wifi', label: 'Wi-Fi' },
       { id: 'firewall', icon: 'shield', label: 'Firewall' },
+      { id: 'vpn', icon: 'vpn', label: 'VPN' },
       { id: 'dhcp', icon: 'dns', label: 'DHCP & DNS' },
     ],
     [
