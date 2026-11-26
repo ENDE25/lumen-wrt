@@ -223,8 +223,6 @@
             </tbody>
           </table></div>
         {/if}
-        <p class="faint small foot">Each device counts what it sent and received through the router, once, whichever interface it used. Traffic between two local devices counts for both, so the rows can add up to more than the Internet total.</p>
-        {#if ct.persist === false}<p class="faint small foot">Device history is kept in memory and a reboot clears it. To keep it, set <code>persist</code> in <code>/etc/config/lumen</code> to a file on a disk.</p>{/if}
       {/if}
     </div>
 
@@ -276,7 +274,6 @@
   .filters { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin: 0 0 12px; }
   .cnt { color: var(--text-3); font-weight: 400; margin-left: 4px; }
   .opt { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-2); }
-  .foot { margin: 12px 0 0; }
   tr.gone .who, tr.gone .num, tr.gone td.bar i { opacity: .62; }
   .away { margin-left: 4px; font-size: 12px; color: var(--text-3); background: var(--surface-2); border-radius: 999px; padding: 2px 9px; white-space: nowrap; }
   .tagi { margin-left: 8px; font-family: var(--font); }
